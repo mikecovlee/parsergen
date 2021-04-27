@@ -1,6 +1,6 @@
 #!/usr/bin/env cs
 #
-# Covariant Script Parser Generator: Grammar of Extended CovScript(ECS Lang)
+# Covariant Script Parser Generator: Grammar of Extended CovScript(ECS Lang) v1.0.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
