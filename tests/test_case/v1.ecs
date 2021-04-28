@@ -44,6 +44,26 @@ function test(a : string, b : number, =c)
     return fuck_you()
 }
 
+var num = 3
+switch num
+	case 2
+		system.out.println(num)
+	end
+case 3
+		system.out.println(num)
+	end
+case 4
+		system.out.println(num)
+	end
+	default
+		system.out.println(num)
+	end	
+end
+
+loop
+   num++
+   system.out.println(num)
+until num == 10
 struct xxxx
     var a = 10
 end
