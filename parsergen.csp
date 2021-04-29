@@ -1,6 +1,6 @@
 #!/usr/bin/env cs
 #
-# Covariant Script Parser Generator v1.0.0
+# Covariant Script Parser Generator v1.0.1
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -528,9 +528,9 @@ function print_header(txt)
     system.out.println("")
 end
 
-function print_error(code, err)
+function print_error(file, code, err)
     foreach it in err
-        system.out.print("File \"" + context.cmd_args[1] + "\", line " + (it.pos[1] + 1) + ": ")
+        system.out.print("File \"" + file + "\", line " + (it.pos[1] + 1) + ": ")
         system.out.println(it.text)
         system.out.println("> " + code[it.pos[1]])
         foreach i in range(it.pos[0] + 2) do system.out.print(' ')
@@ -578,6 +578,7 @@ class generator
     var stop_on_error = true
     var enable_log = false
     # Private Methods
+    var file_path = "<FILE>"
     function priv_run(lang)
         if rules.exist(lang)
             lexer = new lexer_type
@@ -595,7 +596,7 @@ class generator
                 else
                     print_header("Compilation Warning")
                 end
-                print_error(code_buff, lexer.error_log)
+                print_error(file_path, code_buff, lexer.error_log)
                 if stop_on_error
                     return
                 end
@@ -624,7 +625,7 @@ class generator
                 print_header("Compilation Error")
                 var err = {(lexer.error_log)..., (parser.get_log(0))...}
                 err.sort([](lhs, rhs)->lhs.pos[1] < rhs.pos[1])
-                print_error(code_buff, err)
+                print_error(file_path, code_buff, err)
             end
         end
     end
@@ -637,6 +638,7 @@ class generator
         if !ifs.good()
             return
         end
+        file_path = path
         input = new string
         code_buff = new array
         while ifs.good()

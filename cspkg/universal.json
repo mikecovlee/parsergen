@@ -1,4 +1,5 @@
 {
     "parsergen": "https://raw.githubusercontent.com/mikecovlee/parsergen/main/cspkg/parsergen.json",
-    "ecs_parser": "https://raw.githubusercontent.com/mikecovlee/parsergen/main/cspkg/ecs_parser.json"
+    "ecs_parser": "https://raw.githubusercontent.com/mikecovlee/parsergen/main/cspkg/ecs_parser.json",
+    "ecs_style": "https://raw.githubusercontent.com/mikecovlee/parsergen/main/cspkg/ecs_style.json"
 }
