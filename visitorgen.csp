@@ -144,11 +144,11 @@ class visitor_generator
         switch s.type
             case parsergen.syntax_type.token
                 println("# Visit " + s.data + " token")
-                println("target.print(nodes[idx++].data + \" \")")
+                println("target.print(nodes[idx++].data)")
             end
             case parsergen.syntax_type.term
                 println("# Visit term \"" + s.data + "\"")
-                println("target.print(nodes[idx++].data + \" \")")
+                println("++idx; target.print(\"" + s.data + "\")")
             end
             case parsergen.syntax_type.ref
                 var name = s.data
