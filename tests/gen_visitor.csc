@@ -8,8 +8,9 @@ var ast_visitor = context.source_import("./ast_visitor.csp")
 var parser = new parsergen.generator
 var visitor = new ast_visitor.main
 parser.add_grammar("ecs-lang", ecs_parser.grammar)
-parser.from_file(context.cmd_args.at(1))
+parser.from_file(context.cmd_args.at(2))
 
 if parser.ast != null
-    visitor.run(parser.token_buff, parser.ast)
+    var ofs = iostream.ofstream(context.cmd_args.at(1))
+    visitor.run(ofs, parser.ast)
 end

@@ -33,25 +33,18 @@ var header =
 "import parsergen\n" +
 "class main\n" +
 "    var target = system.out\n" +
-"    var token_buff = null\n" +
 "    var indent_size = 2\n" +
-"    var curosr = 0\n" +
-"    function peek()\n" +
-"        return token_buff[curosr]\n" +
-"    end\n" +
-"    function get()\n" +
-"        return token_buff[++curosr]\n" +
-"    end\n" +
-"    function print_indent(indent)\n" +
+"    var indent = 0\n" +
+"    function print_indent()\n" +
 "        foreach i in range(indent*indent_size) do target.print(\' \')\n" +
 "    end"
 @end
 
 @begin
 var tail =
-"    function run(lex, ast)\n" +
-"        this.token_buff = lex\n" +
-"        this.visit_begin(0, ast)\n" +
+"    function run(os, ast)\n" +
+"        this.target = os\n" +
+"        this.visit_begin(ast.nodes)\n" +
 "    end\nend"
 @end
 
@@ -100,10 +93,7 @@ class visitor_generator
                     it.next()
                 end
                 case parsergen.syntax_type.ref
-                    var product = get_prefix(syntax[it.data.data])
-                    if product != null
-                        foreach stx in product do data.push_back(move(stx))
-                    end
+                    data.push_back(it.data)
                     break
                 end
                 case parsergen.syntax_type.repeat
@@ -138,24 +128,27 @@ class visitor_generator
         end
     end
     function gen_match(stx)
-        if stx.type == parsergen.syntax_type.term
-            target.print("peek().data == \"" + stx.data + "\"")
-        else
-            target.print("peek().type == \"" + stx.data + "\"")
+        switch stx.type
+            case parsergen.syntax_type.term
+                target.print("typeid nodes[idx] == typeid parsergen.token_type && nodes[idx].data == \"" + stx.data + "\"")
+            end
+            case parsergen.syntax_type.token
+                target.print("typeid nodes[idx] == typeid parsergen.token_type && nodes[idx].type == \"" + stx.data + "\"")
+            end
+            case parsergen.syntax_type.ref
+                target.print("typeid nodes[idx] == typeid parsergen.syntax_tree && nodes[idx].root == \"" + stx.data + "\"")
+            end
         end
     end
     function gen_syntax(s)
         switch s.type
             case parsergen.syntax_type.token
                 println("# Visit " + s.data + " token")
-                println("++idx; target.print(get().data)")
+                println("target.print(nodes[idx++].data + \" \")")
             end
             case parsergen.syntax_type.term
                 println("# Visit term \"" + s.data + "\"")
-                println("++idx; target.print(\"" + s.data + "\")")
-            end
-            case parsergen.syntax_type.nlook
-                println("# Negative Lookup")
+                println("target.print(nodes[idx++].data + \" \")")
             end
             case parsergen.syntax_type.ref
                 var name = s.data
@@ -165,24 +158,29 @@ class visitor_generator
                     end
                 end
                 println("# Recursive Visit " + s.data)
-                println("this.visit_" + name + "(indent, it.nodes.at(idx++))")
+                println("this.visit_" + name + "(nodes[idx++].nodes)")
             end
             case parsergen.syntax_type.repeat
                 println("# Repeat")
                 var prefix = get_prefix(s.data)
-                var beg = prefix.begin
-                print("while ")
-                gen_match(beg.data)
-                loop
-                    beg.next()
-                    if beg != prefix.end
-                        target.print(" || ")
-                        gen_match(beg.data)
-                    else
-                        break
+                if prefix != null
+                    var beg = prefix.begin
+                    print("while idx < nodes.size && (")
+                    gen_match(beg.data)
+                    loop
+                        beg.next()
+                        if beg != prefix.end
+                            target.print(" || ")
+                            gen_match(beg.data)
+                        else
+                            break
+                        end
                     end
+                    target.println(")")
+                else
+                    println("# TODO")
+                    println("while idx < nodes.size && (true)")
                 end
-                target.println("; get()")
                 ++indent
                 foreach it in s.data
                     gen_syntax(it)
@@ -193,19 +191,24 @@ class visitor_generator
             case parsergen.syntax_type.opt
                 println("# Optional")
                 var prefix = get_prefix(s.data)
-                var beg = prefix.begin
-                print("if ")
-                gen_match(beg.data)
-                loop
-                    beg.next()
-                    if beg != prefix.end
-                        target.print(" || ")
-                        gen_match(beg.data)
-                    else
-                        break
+                if prefix != null
+                    var beg = prefix.begin
+                    print("if idx < nodes.size && (")
+                    gen_match(beg.data)
+                    loop
+                        beg.next()
+                        if beg != prefix.end
+                            target.print(" || ")
+                            gen_match(beg.data)
+                        else
+                            break
+                        end
                     end
+                    target.println(")")
+                else
+                    println("# TODO")
+                    println("if idx < nodes.size && (true)")
                 end
-                target.println("; get()")
                 ++indent
                 foreach it in s.data
                     gen_syntax(it)
@@ -220,21 +223,26 @@ class visitor_generator
                 println("var matched = false")
                 foreach seq in s.data
                     var prefix = get_prefix(seq)
-                    var beg = prefix.begin
-                    print("if !matched && (")
-                    gen_match(beg.data)
-                    loop
-                        beg.next()
-                        if beg != prefix.end
-                            target.print(" || ")
-                            gen_match(beg.data)
-                        else
-                            break
+                    if prefix != null
+                        var beg = prefix.begin
+                        print("if !matched && (")
+                        gen_match(beg.data)
+                        loop
+                            beg.next()
+                            if beg != prefix.end
+                                target.print(" || ")
+                                gen_match(beg.data)
+                            else
+                                break
+                            end
                         end
+                        target.println(")")
+                    else
+                        println("# TODO")
+                        println("if !matched && true")
                     end
-                    target.println(")")
                     ++indent
-                    println("get(); matched = true")
+                    println("matched = true")
                     foreach it in seq
                         gen_syntax(it)
                     end
@@ -261,7 +269,7 @@ class visitor_generator
                     name.assign(i, '_')
                 end
             end
-            println("function visit_" + name + "(indent, it)")
+            println("function visit_" + name + "(nodes)")
             ++indent
             println("var idx = 0")
             foreach s in it.second
