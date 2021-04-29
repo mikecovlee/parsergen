@@ -1002,8 +1002,8 @@ class main
         target.print(nodes[idx++].data)
         # Visit term "="
         ++idx; target.print(" = ")
-        # Recursive Visit basic-expr
-        this.visit_basic_expr(nodes[idx++].nodes)
+        # Recursive Visit single-expr
+        this.visit_single_expr(nodes[idx++].nodes)
         # Optional
         if idx < nodes.size && (typeid nodes[idx] == typeid parsergen.token_type && nodes[idx].data == ",")
             # Visit term ","
@@ -1563,6 +1563,7 @@ class main
         ++idx; target.println("")
         # Recursive Visit stmts
         this.visit_stmts(nodes[idx++].nodes)
+        print_indent()
         # Condition
         block
             var matched = false
@@ -1574,7 +1575,6 @@ class main
             if !matched && (typeid nodes[idx] == typeid parsergen.token_type && nodes[idx].data == "end")
                 matched = true
                 # Visit term "end"
-                print_indent()
                 target.println("end")
             end
             if !matched

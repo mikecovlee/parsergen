@@ -126,7 +126,7 @@ var covscript_syntax = {
         {syntax.ref("var-bind")}
     )},
     "var-list" : {
-        syntax.token("id"), syntax.term("="), syntax.ref("basic-expr"), syntax.optional(syntax.term(","), syntax.ref("var-list"))
+        syntax.token("id"), syntax.term("="), syntax.ref("single-expr"), syntax.optional(syntax.term(","), syntax.ref("var-list"))
     },
     "block-stmt" : {
         syntax.term("block"), syntax.token("endl"), syntax.ref("stmts"), syntax.term("end"), syntax.token("endl")
