@@ -71,7 +71,7 @@ var covscript_syntax = {
         {syntax.ref("catch-stmt")}
     )},
     "statement" : {syntax.cond_or(
-        {syntax.ref("pacakge-stmt")},
+        {syntax.ref("package-stmt")},
         {syntax.ref("import-stmt")},
         {syntax.ref("var-stmt")},
         {syntax.ref("block-stmt")},
