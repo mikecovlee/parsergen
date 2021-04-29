@@ -99,7 +99,7 @@ var covscript_syntax = {
         {syntax.ref("class-stmt")}
     )},
     # Statements
-    "pacakge-stmt" : {
+    "package-stmt" : {
         syntax.term("package"), syntax.token("id"), syntax.ref("endline")
     },
     "import-stmt" : {
