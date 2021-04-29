@@ -71,7 +71,7 @@ var covscript_syntax = {
         {syntax.ref("catch-stmt")}
     )},
     "statement" : {syntax.cond_or(
-        {syntax.ref("pacakge-stmt")},
+        {syntax.ref("package-stmt")},
         {syntax.ref("import-stmt")},
         {syntax.ref("var-stmt")},
         {syntax.ref("block-stmt")},
@@ -99,7 +99,7 @@ var covscript_syntax = {
         {syntax.ref("class-stmt")}
     )},
     # Statements
-    "pacakge-stmt" : {
+    "package-stmt" : {
         syntax.term("package"), syntax.token("id"), syntax.ref("endline")
     },
     "import-stmt" : {
@@ -189,7 +189,7 @@ var covscript_syntax = {
         )
     },
     "return-stmt" : {
-        syntax.term("return"), syntax.optional(syntax.ref("expr")), syntax.ref("endline")
+        syntax.term("return"), syntax.optional(syntax.nlook(syntax.token("endl")), syntax.ref("expr")), syntax.ref("endline")
     },
     "try-stmt" : {
         syntax.term("try"), syntax.token("endl"), syntax.ref("stmts"), syntax.repeat(syntax.ref("catch-stmt"), syntax.ref("stmts")), syntax.term("end"), syntax.token("endl")
@@ -198,7 +198,7 @@ var covscript_syntax = {
         syntax.term("catch"), syntax.token("id"), syntax.optional(syntax.term(":"), syntax.ref("visit-expr")), syntax.token("endl")
     },
     "throw-stmt" : {
-        syntax.term("throw"), syntax.optional(syntax.ref("expr")), syntax.ref("endline")
+        syntax.term("throw"), syntax.optional(syntax.nlook(syntax.token("endl")), syntax.ref("expr")), syntax.ref("endline")
     },
     "class-stmt" : {
         syntax.cond_or({syntax.term("class")}, {syntax.term("struct")}), syntax.token("id"), syntax.optional(syntax.term("extends"), syntax.ref("visit-expr")), syntax.token("endl"),
