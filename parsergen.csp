@@ -27,6 +27,7 @@ import regex
 # ParserGen Syntax
 
 struct syntax_impl
+    var boot = null
     var type = null
     var data = null
 end
@@ -40,7 +41,8 @@ namespace syntax_type
         nlook  = 4,
         repeat = 5,
         opt    = 6,
-        cond   = 7
+        cond   = 7,
+        cond_p = 8
 @end
 end
 
@@ -75,7 +77,9 @@ namespace syntax
     end
     # a | b | c... ==> {a}, {b}, {c}...
     function cond_or(...args)
-        return make_syntax(syntax_type.cond, args)
+        var data = new array
+        foreach it in args do data.push_back(make_syntax(syntax_type.cond_p, it))
+        return make_syntax(syntax_type.cond, data)
     end
 end
 
@@ -228,6 +232,20 @@ namespace parse_state
         reject = -1,
         eof    = -2
 @end
+end
+
+struct bootset_type
+    var data_set = new hash_set
+    var type_set = new hash_set
+    function predict(token)
+        if data_set.exist(token.data)
+            return true
+        end
+        if type_set.exist(token.type)
+            return true
+        end
+        return false
+    end
 end
 
 class parser_type
@@ -485,7 +503,7 @@ class parser_type
             case syntax_type.cond
                 foreach seq in it.data
                     push_stage("cond_or")
-                    var result = match_syntax(seq)
+                    var result = match_syntax(seq.data)
                     switch result
                         case parse_state.accept
                             merge()
@@ -510,9 +528,31 @@ class parser_type
         end
         return parse_state.reject
     end
+    # Preparation(Generating boot set of parsing stages)
+    function prep_syntax(seq)
+        var set = new bootset_type
+        foreach it in seq
+            switch it.type
+            case syntax_type.term
+                set.data_set.insert(it.data)
+                break
+            end
+            case syntax_type.token
+                set.type_set.insert(it.data)
+                break
+            end
+            case syntax_type.ref
+                if stack.empty() || stack.front != it.data
+                    stack.push_front(it.data)
+                    var ret = prep_syntax(syn.at(it.data))
+                end
+            end
+        end
+    end
     function run(grammar, lex_output)
         syn = grammar
         lex = lex_output
+
         push_stage("begin")
         return match_syntax(syn.begin) == parse_state.eof && stack.size == 1
     end
