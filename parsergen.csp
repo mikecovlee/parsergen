@@ -239,21 +239,6 @@ struct bootset_type
     var type_set = new hash_set
     var neg_data_set = new hash_set
     var neg_type_set = new hash_set
-    function predict(token)
-        if neg_type_set.exist(token.type)
-            return false
-        end
-        if neg_data_set.exist(token.data)
-            return false
-        end
-        if data_set.exist(token.data)
-            return true
-        end
-        if type_set.exist(token.type)
-            return true
-        end
-        return false
-    end
     function merge(set)
         data_set = hash_set.merge(data_set, set.data_set)
         type_set = hash_set.merge(type_set, set.type_set)
@@ -390,6 +375,41 @@ class parser_type
             on_ign = false
         end
     end
+    # Match Prediction
+    function predict(s)
+        if s.boot != null && !eof()
+            link token = peek()
+            link set = s.boot
+            if set.neg_type_set.exist(token.type) || set.neg_data_set.exist(token.data)
+                return false
+            end
+            if set.data_set.exist(token.data) || set.type_set.exist(token.type)
+                return true
+            end
+            if !on_ign
+                on_ign = true
+                push_stage("ignore")
+                parse_log("Begin Ignore in Predict")
+                ++log_indent
+                if match_syntax(syn.ignore) == parse_state.accept
+                    context.link_var("token", lex.at(pop_stage().cursor))
+                    if set.data_set.exist(token.data) || set.type_set.exist(token.type)
+                        --log_indent
+                        parse_log("End Ignore in Predict")
+                        on_ign = false
+                        return true
+                    end
+                else
+                    pop_stage()
+                end
+                --log_indent
+                parse_log("End Ignore in Predict")
+                on_ign = false
+            end
+            return false
+        end
+        return true
+    end
     # Match:  Terminal Symbols
     # Deduct: Unstarred Nonterminals
     # Accept: Matching Successfully
@@ -443,7 +463,7 @@ class parser_type
                 end
             end
             case syntax_type.ref
-                if it.boot != null && !eof() && !it.boot.predict(peek())
+                if !predict(it)
                     parse_log("Predict Failed: " + it.data)
                     return parse_state.reject
                 end
@@ -467,10 +487,6 @@ class parser_type
                 end
             end
             case syntax_type.nlook
-                if it.boot != null && !eof() && it.boot.predict(peek())
-                    parse_log("Predict Failed in NLOOK")
-                    return parse_state.stop
-                end
                 push_stage("nlook")
                 var result = match_syntax(it.data)
                 pop_stage()
@@ -490,7 +506,7 @@ class parser_type
                 end
             end
             case syntax_type.repeat
-                if it.boot != null && !eof() && !it.boot.predict(peek())
+                if !predict(it)
                     parse_log("Predict Failed in REPEAT")
                     return parse_state.accept
                 end
@@ -517,7 +533,7 @@ class parser_type
                 end
             end
             case syntax_type.opt
-                if it.boot != null && !eof() && !it.boot.predict(peek())
+                if !predict(it)
                     parse_log("Predict Failed in OPTIONAL")
                     return parse_state.accept
                 end
@@ -536,7 +552,7 @@ class parser_type
             end
             case syntax_type.cond
                 foreach seq in it.data
-                    if seq.boot != null && !eof() && !seq.boot.predict(peek())
+                    if !predict(seq)
                         parse_log("Predict Failed in CONDITION")
                         continue
                     end
@@ -639,6 +655,9 @@ class parser_type
         syn = grammar
         lex = lex_output
         prep_syntax(syn.begin)
+        if syn.exist("ignore")
+            prep_syntax(syn.ignore)
+        end
         push_stage("begin")
         return match_syntax(syn.begin) == parse_state.eof && stack.size == 1
     end

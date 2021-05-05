@@ -183,7 +183,7 @@ main.add_grammar("c-", cminus_grammar)
 main.add_grammar("ecs-lang", ecs_parser.grammar)
 
 main.stop_on_error = false
-# main.enable_log = true
+#main.enable_log = true
 
 var time_start = runtime.time()
 main.from_file(context.cmd_args.at(1))
