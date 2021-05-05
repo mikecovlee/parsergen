@@ -248,15 +248,30 @@ struct bootset_type
         end
         return false
     end
+    function empty()
+        return data_set.empty() && type_set.empty() && neg_data_set.empty() && neg_type_set.empty()
+    end
     function merge(set)
-        data_set = hash_set.merge(data_set, set.data_set)
-        type_set = hash_set.merge(type_set, set.type_set)
-        neg_data_set = hash_set.merge(neg_data_set, set.neg_data_set)
-        neg_type_set = hash_set.merge(neg_type_set, set.neg_type_set)
+        if !set.data_set.empty()
+            data_set = hash_set.merge(data_set, set.data_set)
+        end
+        if !set.type_set.empty()
+            type_set = hash_set.merge(type_set, set.type_set)
+        end
+        if !set.neg_data_set.empty()
+            neg_data_set = hash_set.merge(neg_data_set, set.neg_data_set)
+        end
+        if !set.neg_type_set.empty()
+            neg_type_set = hash_set.merge(neg_type_set, set.neg_type_set)
+        end
     end
     function merge_neg(set)
-        neg_data_set = hash_set.merge(neg_data_set, set.data_set)
-        neg_type_set = hash_set.merge(neg_type_set, set.type_set)
+        if !set.data_set.empty()
+            neg_data_set = hash_set.merge(neg_data_set, set.data_set)
+        end
+        if !set.type_set.empty()
+            neg_type_set = hash_set.merge(neg_type_set, set.type_set)
+        end
     end
 end
 
@@ -265,9 +280,10 @@ class parser_type
     var error_log = new array
     var max_cursor = 0
     # Parsing
+    var predict_cache = new hash_map
     var ign_bootset = null
-    var on_ign = false
     var stack = new array
+    var on_ign = false
     var syn = null
     var lex = null
     # Logging
@@ -398,10 +414,9 @@ class parser_type
         end
     end
     # Match Prediction
-    function predict(s, fail_on_eof)
-        if s.boot != null && !eof()
+    function predict(set, fail_on_eof)
+        if set != null && !eof()
             var token = peek()
-            link set = s.boot
             if set.neg_type_set.exist(token.type) || set.neg_data_set.exist(token.data)
                 return false
             end
@@ -473,7 +488,7 @@ class parser_type
                 end
             end
             case syntax_type.ref
-                if !predict(it, false)
+                if it.boot == null ? !predict(predict_cache.at(it.data), false) : !predict(it.boot, false)
                     parse_log("Predict Failed: " + it.data)
                     return parse_state.reject
                 end
@@ -497,7 +512,7 @@ class parser_type
                 end
             end
             case syntax_type.nlook
-                if predict(it, true)
+                if predict(it.boot, true)
                     parse_log("Predict Failed in NLOOK")
                     return parse_state.stop
                 end
@@ -520,7 +535,7 @@ class parser_type
                 end
             end
             case syntax_type.repeat
-                if !predict(it, false)
+                if !predict(it.boot, false)
                     parse_log("Predict Failed in REPEAT")
                     return parse_state.accept
                 end
@@ -547,7 +562,7 @@ class parser_type
                 end
             end
             case syntax_type.opt
-                if !predict(it, false)
+                if !predict(it.boot, false)
                     parse_log("Predict Failed in OPTIONAL")
                     return parse_state.accept
                 end
@@ -566,7 +581,7 @@ class parser_type
             end
             case syntax_type.cond
                 foreach seq in it.data
-                    if !predict(seq, false)
+                    if !predict(seq.boot, false)
                         parse_log("Predict Failed in CONDITION")
                         continue
                     end
@@ -613,12 +628,21 @@ class parser_type
                     if it.boot != null
                         set.merge(it.boot)
                         break
+                    else
+                        if predict_cache.exist(it.data)
+                            it.boot = predict_cache.at(it.data)
+                            set.merge(it.boot)
+                            break
+                        end
                     end
                     if stack.empty() || stack.front != it.data
                         stack.push_front(it.data)
                         var ret = prep_syntax(syn.at(it.data))
-                        it.boot = ret
-                        set.merge(ret)
+                        if !ret.empty()
+                            predict_cache.insert(it.data, ret)
+                            it.boot = ret
+                            set.merge(ret)
+                        end
                         stack.pop_front()
                     end
                     break
@@ -628,8 +652,10 @@ class parser_type
                         set.merge_neg(it.boot)
                     else
                         var ret = prep_syntax(it.data)
-                        it.boot = ret
-                        set.merge_neg(ret)
+                        if !ret.empty()
+                            it.boot = ret
+                            set.merge_neg(ret)
+                        end
                     end
                 end
                 case syntax_type.repeat
@@ -637,8 +663,10 @@ class parser_type
                         set.merge(it.boot)
                     else
                         var ret = prep_syntax(it.data)
-                        it.boot = ret
-                        set.merge(ret)
+                        if !ret.empty()
+                            it.boot = ret
+                            set.merge(ret)
+                        end
                     end
                 end
                 case syntax_type.opt
@@ -646,8 +674,10 @@ class parser_type
                         set.merge(it.boot)
                     else
                         var ret = prep_syntax(it.data)
-                        it.boot = ret
-                        set.merge(ret)
+                        if !ret.empty()
+                            it.boot = ret
+                            set.merge(ret)
+                        end
                     end
                 end
                 case syntax_type.cond
@@ -656,8 +686,10 @@ class parser_type
                             set.merge(cond_p.boot)
                         else
                             var ret = prep_syntax(cond_p.data)
-                            cond_p.boot = ret
-                            set.merge(ret)
+                            if !ret.empty()
+                                cond_p.boot = ret
+                                set.merge(ret)
+                            end
                         end
                     end
                 end
@@ -668,10 +700,13 @@ class parser_type
     function run(grammar, lex_output)
         syn = grammar
         lex = lex_output
-        prep_syntax(syn.begin)
-        if syn.exist("ignore")
-            ign_bootset = prep_syntax(syn.ignore)
+        foreach it in syn
+            predict_cache.insert(it.first, prep_syntax(it.second))
         end
+        if predict_cache.exist("ignore")
+            ign_bootset = predict_cache.ignore
+        end
+        prep_syntax(syn.begin)
         push_stage("begin")
         return match_syntax(syn.begin) == parse_state.eof && stack.size == 1
     end
