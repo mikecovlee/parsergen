@@ -237,41 +237,15 @@ end
 struct bootset_type
     var data_set = new hash_set
     var type_set = new hash_set
-    var neg_data_set = new hash_set
-    var neg_type_set = new hash_set
     function predict(token)
-        if neg_type_set.exist(token.type) || neg_data_set.exist(token.data)
-            return false
-        end
-        if data_set.exist(token.data) || type_set.exist(token.type)
-            return true
-        end
-        return false
+        return data_set.exist(token.data) || type_set.exist(token.type)
     end
     function empty()
-        return data_set.empty() && type_set.empty() && neg_data_set.empty() && neg_type_set.empty()
+        return data_set.empty() && type_set.empty()
     end
     function merge(set)
-        if !set.data_set.empty()
-            data_set = hash_set.merge(data_set, set.data_set)
-        end
-        if !set.type_set.empty()
-            type_set = hash_set.merge(type_set, set.type_set)
-        end
-        if !set.neg_data_set.empty()
-            neg_data_set = hash_set.merge(neg_data_set, set.neg_data_set)
-        end
-        if !set.neg_type_set.empty()
-            neg_type_set = hash_set.merge(neg_type_set, set.neg_type_set)
-        end
-    end
-    function merge_neg(set)
-        if !set.data_set.empty()
-            neg_data_set = hash_set.merge(neg_data_set, set.data_set)
-        end
-        if !set.type_set.empty()
-            neg_type_set = hash_set.merge(neg_type_set, set.type_set)
-        end
+        data_set = hash_set.merge(data_set, set.data_set)
+        type_set = hash_set.merge(type_set, set.type_set)
     end
 end
 
@@ -417,9 +391,6 @@ class parser_type
     function predict(set, fail_on_eof)
         if set != null && !eof()
             var token = peek()
-            if set.neg_type_set.exist(token.type) || set.neg_data_set.exist(token.data)
-                return false
-            end
             if set.data_set.exist(token.data) || set.type_set.exist(token.type)
                 return true
             end
@@ -436,7 +407,7 @@ class parser_type
         end
     end
     # Match:  Terminal Symbols
-    # Deduct: Unstarred Nonterminals
+    # Reduce: Nonterminal Symbols
     # Accept: Matching Successfully
     # Reject: Matching Failed, Rollback
     function match(it)
@@ -493,7 +464,7 @@ class parser_type
                     return parse_state.reject
                 end
                 push_stage(it.data)
-                parse_log("Deduct " + it.data)
+                parse_log("Reduce " + it.data)
                 ++log_indent
                 var result = match_syntax(syn.at(it.data))
                 --log_indent
@@ -628,13 +599,13 @@ class parser_type
                     if it.boot != null
                         set.merge(it.boot)
                         break
-                    else
-                        if predict_cache.exist(it.data)
-                            it.boot = predict_cache.at(it.data)
-                            set.merge(it.boot)
-                            break
-                        end
                     end
+                    if predict_cache.exist(it.data)
+                        it.boot = predict_cache.at(it.data)
+                        set.merge(it.boot)
+                        break
+                    end
+                    # Avoid Immediate Left Recursion
                     if stack.empty() || stack.front != it.data
                         stack.push_front(it.data)
                         var ret = prep_syntax(syn.at(it.data))
@@ -648,13 +619,10 @@ class parser_type
                     break
                 end
                 case syntax_type.nlook
-                    if it.boot != null
-                        set.merge_neg(it.boot)
-                    else
+                    if it.boot == null
                         var ret = prep_syntax(it.data)
                         if !ret.empty()
                             it.boot = ret
-                            set.merge_neg(ret)
                         end
                     end
                 end
