@@ -1,6 +1,6 @@
 #!/usr/bin/env cs
 #
-# Covariant Script AST Visitor Generator v1.0.0
+# Covariant Script AST Visitor Generator v1.1.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -33,10 +33,9 @@ var header =
 "import parsergen\n" +
 "class main\n" +
 "    var target = system.out\n" +
-"    var indent_size = 2\n" +
-"    var indent = 0\n" +
+"    var indent = -1\n" +
 "    function print_indent()\n" +
-"        foreach i in range(indent*indent_size) do target.print(\' \')\n" +
+"        foreach i in range(indent) do target.print(\'\\t\')\n" +
 "    end"
 @end
 
@@ -112,7 +111,7 @@ class visitor_generator
                 end
                 case parsergen.syntax_type.cond
                     foreach stx in it.data.data
-                        var product = get_prefix(stx)
+                        var product = get_prefix(stx.data)
                         if product != null
                             foreach stx in product do data.push_back(move(stx))
                         end
@@ -222,7 +221,7 @@ class visitor_generator
                 ++indent
                 println("var matched = false")
                 foreach seq in s.data
-                    var prefix = get_prefix(seq)
+                    var prefix = get_prefix(seq.data)
                     if prefix != null
                         var beg = prefix.begin
                         print("if !matched && (")
@@ -243,7 +242,7 @@ class visitor_generator
                     end
                     ++indent
                     println("matched = true")
-                    foreach it in seq
+                    foreach it in seq.data
                         gen_syntax(it)
                     end
                     --indent

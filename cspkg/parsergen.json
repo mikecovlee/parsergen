@@ -1,8 +1,8 @@
 {
     "Name": "parsergen",
-    "Info": "LR(1) Parser Generator written in Covariant Script",
+    "Info": "Parser Generator written in Covariant Script",
     "Author": "Michael Lee",
-    "Version": "1.0.1",
+    "Version": "1.1.0",
     "Target": "https://raw.githubusercontent.com/mikecovlee/parsergen/main/parsergen.csp",
     "Dependencies": [
         "regex"

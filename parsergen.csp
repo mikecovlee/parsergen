@@ -1,6 +1,6 @@
 #!/usr/bin/env cs
 #
-# Covariant Script Parser Generator v1.0.1
+# Covariant Script Parser Generator v1.1.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -27,6 +27,7 @@ import regex
 # ParserGen Syntax
 
 struct syntax_impl
+    var boot = null
     var type = null
     var data = null
 end
@@ -40,7 +41,8 @@ namespace syntax_type
         nlook  = 4,
         repeat = 5,
         opt    = 6,
-        cond   = 7
+        cond   = 7,
+        cond_p = 8
 @end
 end
 
@@ -75,7 +77,9 @@ namespace syntax
     end
     # a | b | c... ==> {a}, {b}, {c}...
     function cond_or(...args)
-        return make_syntax(syntax_type.cond, args)
+        var data = new array
+        foreach it in args do data.push_back(make_syntax(syntax_type.cond_p, it))
+        return make_syntax(syntax_type.cond, data)
     end
 end
 
@@ -230,13 +234,30 @@ namespace parse_state
 @end
 end
 
+struct bootset_type
+    var data_set = new hash_set
+    var type_set = new hash_set
+    function predict(token)
+        return data_set.exist(token.data) || type_set.exist(token.type)
+    end
+    function empty()
+        return data_set.empty() && type_set.empty()
+    end
+    function merge(set)
+        data_set = hash_set.merge(data_set, set.data_set)
+        type_set = hash_set.merge(type_set, set.type_set)
+    end
+end
+
 class parser_type
     # Error Reporting
     var error_log = new array
     var max_cursor = 0
     # Parsing
-    var on_ign = false
+    var predict_cache = new hash_map
+    var ign_bootset = null
     var stack = new array
+    var on_ign = false
     var syn = null
     var lex = null
     # Logging
@@ -337,15 +358,20 @@ class parser_type
         end
         return parse_state.accept
     end
-    function ignore()
+    function try_ignore()
+        var cur = null
         if !on_ign && syn.exist("ignore")
+            if ign_bootset != null && stack.front.cursor < lex.size && !ign_bootset.predict(lex.at(stack.front.cursor))
+                parse_log("Predict Failed in IGNORE")
+                return null
+            end
             on_ign = true
             push_stage("ignore")
             parse_log("Begin Ignore")
             ++log_indent
             if match_syntax(syn.ignore) == parse_state.accept
                 link prev_stage = pop_stage()
-                stack.front.cursor = prev_stage.cursor
+                cur = prev_stage.cursor
             else
                 pop_stage()
             end
@@ -353,9 +379,35 @@ class parser_type
             parse_log("End Ignore")
             on_ign = false
         end
+        return cur
+    end
+    function ignore()
+        var cur = try_ignore()
+        if cur != null
+            stack.front.cursor = cur
+        end
+    end
+    # Match Prediction
+    function predict(set, fail_on_eof)
+        if set != null && !eof()
+            var token = peek()
+            if set.data_set.exist(token.data) || set.type_set.exist(token.type)
+                return true
+            end
+            var cur = try_ignore()
+            if cur != null && cur < lex.size
+                token = lex.at(cur)
+                if set.data_set.exist(token.data) || set.type_set.exist(token.type)
+                    return true
+                end
+            end
+            return false
+        else
+            return !fail_on_eof
+        end
     end
     # Match:  Terminal Symbols
-    # Deduct: Unstarred Nonterminals
+    # Deduce: Nonterminal Symbols
     # Accept: Matching Successfully
     # Reject: Matching Failed, Rollback
     function match(it)
@@ -407,8 +459,12 @@ class parser_type
                 end
             end
             case syntax_type.ref
+                if it.boot == null ? !predict(predict_cache.at(it.data), false) : !predict(it.boot, false)
+                    parse_log("Predict Failed: " + it.data)
+                    return parse_state.reject
+                end
                 push_stage(it.data)
-                parse_log("Deduct " + it.data)
+                parse_log("Deduce " + it.data)
                 ++log_indent
                 var result = match_syntax(syn.at(it.data))
                 --log_indent
@@ -427,6 +483,10 @@ class parser_type
                 end
             end
             case syntax_type.nlook
+                if predict(it.boot, true)
+                    parse_log("Predict Failed in NLOOK")
+                    return parse_state.stop
+                end
                 push_stage("nlook")
                 var result = match_syntax(it.data)
                 pop_stage()
@@ -446,6 +506,10 @@ class parser_type
                 end
             end
             case syntax_type.repeat
+                if !predict(it.boot, false)
+                    parse_log("Predict Failed in REPEAT")
+                    return parse_state.accept
+                end
                 loop
                     push_stage("repeat")
                     var result = match_syntax(it.data)
@@ -469,6 +533,10 @@ class parser_type
                 end
             end
             case syntax_type.opt
+                if !predict(it.boot, false)
+                    parse_log("Predict Failed in OPTIONAL")
+                    return parse_state.accept
+                end
                 push_stage("optional")
                 var result = match_syntax(it.data)
                 if result != parse_state.reject
@@ -484,8 +552,12 @@ class parser_type
             end
             case syntax_type.cond
                 foreach seq in it.data
+                    if !predict(seq.boot, false)
+                        parse_log("Predict Failed in CONDITION")
+                        continue
+                    end
                     push_stage("cond_or")
-                    var result = match_syntax(seq)
+                    var result = match_syntax(seq.data)
                     switch result
                         case parse_state.accept
                             merge()
@@ -510,9 +582,99 @@ class parser_type
         end
         return parse_state.reject
     end
+    # Preparation(Generating boot set of parsing stages)
+    function prep_syntax(seq)
+        var set = new bootset_type
+        foreach it in seq
+            switch it.type
+                case syntax_type.term
+                    set.data_set.insert(it.data)
+                    break
+                end
+                case syntax_type.token
+                    set.type_set.insert(it.data)
+                    break
+                end
+                case syntax_type.ref
+                    if it.boot != null
+                        set.merge(it.boot)
+                        break
+                    end
+                    if predict_cache.exist(it.data)
+                        it.boot = predict_cache.at(it.data)
+                        set.merge(it.boot)
+                        break
+                    end
+                    # Avoid Immediate Left Recursion
+                    if stack.empty() || stack.front != it.data
+                        stack.push_front(it.data)
+                        var ret = prep_syntax(syn.at(it.data))
+                        if !ret.empty()
+                            predict_cache.insert(it.data, ret)
+                            it.boot = ret
+                            set.merge(ret)
+                        end
+                        stack.pop_front()
+                    end
+                    break
+                end
+                case syntax_type.nlook
+                    if it.boot == null
+                        var ret = prep_syntax(it.data)
+                        if !ret.empty()
+                            it.boot = ret
+                        end
+                    end
+                end
+                case syntax_type.repeat
+                    if it.boot != null
+                        set.merge(it.boot)
+                    else
+                        var ret = prep_syntax(it.data)
+                        if !ret.empty()
+                            it.boot = ret
+                            set.merge(ret)
+                        end
+                    end
+                end
+                case syntax_type.opt
+                    if it.boot != null
+                        set.merge(it.boot)
+                    else
+                        var ret = prep_syntax(it.data)
+                        if !ret.empty()
+                            it.boot = ret
+                            set.merge(ret)
+                        end
+                    end
+                end
+                case syntax_type.cond
+                    foreach cond_p in it.data
+                        if cond_p.boot != null
+                            set.merge(cond_p.boot)
+                        else
+                            var ret = prep_syntax(cond_p.data)
+                            if !ret.empty()
+                                cond_p.boot = ret
+                                set.merge(ret)
+                            end
+                        end
+                    end
+                end
+            end
+        end
+        return move(set)
+    end
     function run(grammar, lex_output)
         syn = grammar
         lex = lex_output
+        foreach it in syn
+            predict_cache.insert(it.first, prep_syntax(it.second))
+        end
+        if predict_cache.exist("ignore")
+            ign_bootset = predict_cache.ignore
+        end
+        prep_syntax(syn.begin)
         push_stage("begin")
         return match_syntax(syn.begin) == parse_state.eof && stack.size == 1
     end

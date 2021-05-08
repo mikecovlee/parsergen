@@ -1,6 +1,6 @@
 #!/usr/bin/env cs
 #
-# Covariant Script Parser Generator: Grammar of Extended CovScript(ECS Lang) v1.0.1
+# Covariant Script Parser Generator: Grammar of Extended CovScript(ECS Lang) v1.1.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -168,26 +168,22 @@ var covscript_syntax = {
         syntax.term("until"), syntax.ref("basic-expr"), syntax.token("endl")
     },
     "for-stmt" : {
-        syntax.term("for"), syntax.optional(syntax.ref("var-def")), syntax.cond_or({syntax.term(";")}, {syntax.term(",")}), syntax.optional(syntax.ref("basic-expr")), syntax.cond_or({syntax.term(";")}, {syntax.term(",")}), syntax.optional(syntax.ref("basic-expr")),
-        syntax.cond_or(
-            {syntax.term("do"), syntax.ref("basic-expr"), syntax.ref("endline")},
-            {syntax.token("endl"), syntax.ref("stmts"), syntax.term("end"), syntax.token("endl")}
-        )
+        syntax.term("for"), syntax.optional(syntax.ref("var-def")), syntax.cond_or({syntax.term(";")}, {syntax.term(",")}), syntax.optional(syntax.ref("basic-expr")), syntax.cond_or({syntax.term(";")}, {syntax.term(",")}), syntax.optional(syntax.ref("basic-expr")), syntax.ref("for-body")
     },
     "foreach-stmt" : {
-        syntax.term("foreach"), syntax.optional(syntax.nlook(syntax.term("in")), syntax.token("id")), syntax.term("in"), syntax.ref("basic-expr"),
-        syntax.cond_or(
-            {syntax.term("do"), syntax.ref("basic-expr"), syntax.ref("endline")},
-            {syntax.token("endl"), syntax.ref("stmts"), syntax.term("end"), syntax.token("endl")}
-        )
+        syntax.term("foreach"), syntax.optional(syntax.nlook(syntax.term("in")), syntax.token("id")), syntax.term("in"), syntax.ref("basic-expr"), syntax.ref("for-body")
     },
+    "for-body" : {syntax.cond_or(
+        {syntax.term("do"), syntax.ref("basic-expr"), syntax.ref("endline")},
+        {syntax.token("endl"), syntax.ref("stmts"), syntax.term("end"), syntax.token("endl")}
+    )},
     "function-stmt" : {
-        syntax.term("function"), syntax.token("id"), syntax.term("("), syntax.optional(syntax.ref("argument-list")), syntax.term(")"), syntax.optional(syntax.term("override")), syntax.token("endl"),
-        syntax.cond_or(
-            {syntax.term("{"), syntax.ref("stmts"), syntax.term("}")},
-            {syntax.ref("stmts"), syntax.term("end"), syntax.token("endl")}
-        )
+        syntax.term("function"), syntax.token("id"), syntax.term("("), syntax.optional(syntax.ref("argument-list")), syntax.term(")"), syntax.optional(syntax.term("override")), syntax.ref("function-body")
     },
+    "function-body" : {syntax.cond_or(
+        {syntax.term("{"), syntax.ref("stmts"), syntax.term("}")},
+        {syntax.token("endl"), syntax.ref("stmts"), syntax.term("end"), syntax.token("endl")}
+    )},
     "return-stmt" : {
         syntax.term("return"), syntax.optional(syntax.nlook(syntax.token("endl")), syntax.ref("expr")), syntax.ref("endline")
     },
@@ -256,10 +252,13 @@ var covscript_syntax = {
         {syntax.term("{"), syntax.repeat(syntax.ref("statement"), syntax.repeat(syntax.token("endl"))), syntax.term("}")},
         {syntax.term("->"), syntax.ref("cond-expr")}
     )},
-    "cond-expr" : {syntax.ref("logic-or-expr"), syntax.optional(syntax.cond_or(
+    "cond-expr" : {
+        syntax.ref("logic-or-expr"), syntax.optional(syntax.ref("cond-postfix"))
+    },
+    "cond-postfix" : {syntax.cond_or(
         {syntax.term("?"), syntax.ref("logic-or-expr"), syntax.term(":"), syntax.ref("cond-expr")},
         {syntax.term(":"), syntax.ref("logic-or-expr")}
-    ))},
+    )},
     "logic-or-expr" : {
         syntax.ref("logic-and-expr"), syntax.optional(syntax.cond_or({syntax.term("||")}, {syntax.term("or")}), syntax.ref("logic-or-expr"))
     },
@@ -280,10 +279,7 @@ var covscript_syntax = {
     },
     "unary-expr" : {syntax.cond_or(
         {syntax.ref("unary-op"), syntax.ref("unary-expr")},
-        {
-            syntax.cond_or({syntax.term("new")}, {syntax.term("gcnew")}), syntax.ref("unary-expr"),
-            syntax.optional(syntax.term("{"), syntax.optional(syntax.ref("expr")), syntax.term("}"))
-        },
+        {syntax.cond_or({syntax.term("new")}, {syntax.term("gcnew")}), syntax.ref("unary-expr"), syntax.optional(syntax.ref("array"))},
         {syntax.ref("prim-expr"), syntax.nlook(syntax.token("endl")), syntax.optional(syntax.ref("postfix-expr"))}
     )},
     "unary-op" : {syntax.cond_or(
