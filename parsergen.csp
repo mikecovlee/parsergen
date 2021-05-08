@@ -407,7 +407,7 @@ class parser_type
         end
     end
     # Match:  Terminal Symbols
-    # Reduce: Nonterminal Symbols
+    # Deduce: Nonterminal Symbols
     # Accept: Matching Successfully
     # Reject: Matching Failed, Rollback
     function match(it)
@@ -464,7 +464,7 @@ class parser_type
                     return parse_state.reject
                 end
                 push_stage(it.data)
-                parse_log("Reduce " + it.data)
+                parse_log("Deduce " + it.data)
                 ++log_indent
                 var result = match_syntax(syn.at(it.data))
                 --log_indent
