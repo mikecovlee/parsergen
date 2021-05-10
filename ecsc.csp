@@ -494,18 +494,27 @@ class main
     end
     function visit_else_stmt(nodes)
         var idx = 0
+        if !stack.empty() && stack.front == "elif"
+            stack.pop_front()
+            print_indent()
+            target.println("end")
+            --indent
+        end
         # Visit term "else"
         print_indent()
-        ++idx; target.print("else")
+        ++idx; target.println("else")
         # Optional
         if idx < nodes.size && (typeid nodes[idx] == typeid parsergen.token_type && nodes[idx].data == "if")
+            stack.push_front("elif")
+            ++indent
+            print_indent()
             # Visit term "if"
-            ++idx; target.print(" if ")
+            ++idx; target.print("if ")
             # Recursive Visit basic-expr
             this.visit_basic_expr(nodes[idx++].nodes)
+            # Visit endl token
+            target.println("")
         end
-        # Visit endl token
-        target.println("")
     end
     function visit_unary_expr(nodes)
         var idx = 0
