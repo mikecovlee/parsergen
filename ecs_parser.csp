@@ -1,6 +1,6 @@
 #!/usr/bin/env cs
 #
-# Covariant Script Parser Generator: Grammar of Extended CovScript(ECS Lang) v1.1.0
+# Covariant Script Parser Generator: Grammar of Extended CovScript(ECS Lang) v1.1.1
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -33,12 +33,12 @@ var covscript_lexical = {
     "num" : regex.build("^[0-9]+\\.?([0-9]+)?$"),
     "str" : regex.build("^(\"|\"([^\"]|\\\\\")*\"?)$"),
     "char" : regex.build("^(\'|\'([^\']|\\\\(0|\\\\|\'|\"|\\w))\'?)$"),
-    "bsig" : regex.build("^(;|:|\\?|\\.\\.?|\\.\\.\\.)$"),
+    "bsig" : regex.build("^(;|:=?|\\?|\\.\\.?|\\.\\.\\.)$"),
     "msig" : regex.build("^(\\+(\\+|=)?|-(-|=|>)?|\\*=?|/=?|%=?|\\^=?)$"),
     "lsig" : regex.build("^(>|<|&|(\\|)|&&|(\\|\\|)|!|==?|!=?|>=?|<=?)$"),
     "brac" : regex.build("^(\\(|\\)|\\[|\\]|\\{|\\}|,)$"),
     "ign" : regex.build("^([ \\f\\r\\t\\v]+|#.*\\n?|@.*\\n?)$"),
-    "err" : regex.build("^(\"|\'|&|(\\|)|\\.\\.)$")
+    "err" : regex.build("^(\"|\'|(\\|)|\\.\\.)$")
 }.to_hash_map()
 @end
 
@@ -198,16 +198,8 @@ var covscript_syntax = {
     },
     "class-stmt" : {
         syntax.cond_or({syntax.term("class")}, {syntax.term("struct")}), syntax.token("id"), syntax.optional(syntax.term("extends"), syntax.ref("visit-expr")), syntax.token("endl"),
-        syntax.ref("class-stmts"), syntax.term("end"), syntax.token("endl")
+        syntax.ref("decl-stmts"), syntax.term("end"), syntax.token("endl")
     },
-    "class-stmts" : {
-        syntax.repeat(syntax.optional(syntax.ref("member-contorl")), syntax.ref("declaration"), syntax.repeat(syntax.token("endl")))
-    },
-    "member-contorl" : {syntax.cond_or(
-        {syntax.term("public")},
-        {syntax.term("protected")},
-        {syntax.term("private")}
-    )},
     "control-stmt" : {
         syntax.cond_or({syntax.term("break")}, {syntax.term("continue")}), syntax.ref("endline")
     },
@@ -231,6 +223,7 @@ var covscript_syntax = {
     )},
     "asi-op" : {syntax.cond_or(
         {syntax.term("=")},
+        {syntax.term(":=")},
         {syntax.term("+=")},
         {syntax.term("-=")},
         {syntax.term("*=")},
@@ -287,6 +280,7 @@ var covscript_syntax = {
         {syntax.term("++")},
         {syntax.term("--")},
         {syntax.term("*")},
+        {syntax.term("&")},
         {syntax.term("-")},
         {syntax.term("!")}
     )},
