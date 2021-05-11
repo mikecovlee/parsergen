@@ -1,0 +1,13 @@
+package ecs
+
+function param_new(type, args)
+    var data = new type
+    data.initialize(args...)
+    return move(data)
+end
+
+function param_gcnew(type, args)
+    var data = gcnew type
+    data->initialize(args...)
+    return move(data)
+end

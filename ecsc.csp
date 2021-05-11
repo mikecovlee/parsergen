@@ -523,31 +523,55 @@ class main
                 this.visit_unary_expr(nodes[idx++].nodes)
             end
             if !matched && (typeid nodes[idx] == typeid parsergen.token_type && nodes[idx].data == "new" || typeid nodes[idx] == typeid parsergen.token_type && nodes[idx].data == "gcnew")
-                matched = true
-                # Condition
-                block
-                    var matched = false
-                    if !matched && (typeid nodes[idx] == typeid parsergen.token_type && nodes[idx].data == "new")
-                        matched = true
-                        # Visit term "new"
-                        ++idx; target.print("new ")
-                    end
-                    if !matched && (typeid nodes[idx] == typeid parsergen.token_type && nodes[idx].data == "gcnew")
-                        matched = true
-                        # Visit term "gcnew"
-                        ++idx; target.print("gcnew ")
-                    end
-                    if !matched
-                    	# Error
-                    	return
-                    end
-                end
-                # Recursive Visit unary-expr
-                this.visit_unary_expr(nodes[idx++].nodes)
                 # Optional
-                if idx < nodes.size && (typeid nodes[idx] == typeid parsergen.syntax_tree && nodes[idx].root == "array")
+                if nodes.size > 2 && (typeid nodes[2] == typeid parsergen.syntax_tree && nodes[2].root == "array")
+                    matched = true
+                    # Condition
+                    block
+                        var matched = false
+                        if !matched && (typeid nodes[idx] == typeid parsergen.token_type && nodes[idx].data == "new")
+                            matched = true
+                            # Visit term "new"
+                            ++idx; target.print("ecs.param_new(")
+                        end
+                        if !matched && (typeid nodes[idx] == typeid parsergen.token_type && nodes[idx].data == "gcnew")
+                            matched = true
+                            # Visit term "gcnew"
+                            ++idx; target.print("ecs.param_gcnew(")
+                        end
+                        if !matched
+                            # Error
+                            return
+                        end
+                    end
+                    # Recursive Visit unary-expr
+                    this.visit_unary_expr(nodes[idx++].nodes)
+                    target.print(", ")
                     # Recursive Visit array
                     this.visit_array(nodes[idx++].nodes)
+                    target.print(")")
+                else
+                    matched = true
+                    # Condition
+                    block
+                        var matched = false
+                        if !matched && (typeid nodes[idx] == typeid parsergen.token_type && nodes[idx].data == "new")
+                            matched = true
+                            # Visit term "new"
+                            ++idx; target.print("new ")
+                        end
+                        if !matched && (typeid nodes[idx] == typeid parsergen.token_type && nodes[idx].data == "gcnew")
+                            matched = true
+                            # Visit term "gcnew"
+                            ++idx; target.print("gcnew ")
+                        end
+                        if !matched
+                            # Error
+                            return
+                        end
+                    end
+                    # Recursive Visit unary-expr
+                    this.visit_unary_expr(nodes[idx++].nodes)
                 end
             end
             if !matched && (typeid nodes[idx] == typeid parsergen.syntax_tree && nodes[idx].root == "prim-expr")
@@ -1434,7 +1458,7 @@ class main
             if !matched && (typeid nodes[idx] == typeid parsergen.token_type && nodes[idx].data == ";")
                 matched = true
                 # Visit term ";"
-                ++idx; target.println(";")
+                ++idx; target.println("")
             end
             if !matched
             	# Error
@@ -1759,6 +1783,7 @@ class main
     end
     function run(os, ast)
         this.target = os
+        this.target.println("import ecs")
         this.visit_begin(ast.nodes)
     end
 end
