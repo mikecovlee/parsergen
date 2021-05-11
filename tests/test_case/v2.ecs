@@ -1,0 +1,13 @@
+import codec.*
+
+var a = 0, b = 2
+var func = [a, =b](n)
+{
+    a += n
+    b -= n
+    return a + b
+}
+
+system.out.println(func(10))
+system.out.println(a)
+system.out.println(b)

@@ -2,13 +2,13 @@ package ecs
 
 function param_new(type, args)
     var data = new type
-    data.initialize(args...)
+    data.construct(args...)
     return move(data)
 end
 
 function param_gcnew(type, args)
     var data = gcnew type
-    data->initialize(args...)
+    data->construct(args...)
     return move(data)
 end
 
@@ -16,4 +16,15 @@ function check_type(name, id, type)
     if typeid id != typeid type
         throw runtime.exception("Wrong Type for function argument \"" + name + "\".")
     end
+end
+
+var lambda_map = new hash_map
+
+function init_lambda(...args)
+    link id = args.pop_front()
+    return param_new(lambda_map.at(id), args).call
+end
+
+function add_lambda(id, func)
+    lambda_map.insert(id, func)
 end

@@ -28,11 +28,15 @@ package ecsc
 
 import parsergen
 
-class translator
-
+struct lambda_type
+    var capture_list = new array
+    var argument_list = null
+    var body_stmts = null
+    var body_expr = null
 end
 
 class main
+    var lambda_list = new array
     var stack = new array
     var target = system.out
     var indent = -1
@@ -468,14 +472,17 @@ class main
         # Optional
         if idx < nodes.size && (typeid nodes[idx] == typeid parsergen.token_type && nodes[idx].data == "=")
             # Visit term "="
-            ++idx; target.print("=")
+            ++idx
+            stack.front.capture_list.push_back(nodes[idx].data : true)
+        else
+            stack.front.capture_list.push_back(nodes[idx].data : false)
         end
         # Visit id token
-        target.print(nodes[idx++].data)
+        ++idx
         # Repeat
         while idx < nodes.size && (typeid nodes[idx] == typeid parsergen.token_type && nodes[idx].data == ",")
             # Visit term ","
-            ++idx; target.print(", ")
+            ++idx
             # Recursive Visit capture-list
             this.visit_capture_list(nodes[idx++].nodes)
         end
@@ -675,26 +682,44 @@ class main
     end
     function visit_lambda_expr(nodes)
         var idx = 0
+        stack.push_front(new lambda_type)
         # Visit term "["
-        ++idx; target.print("[")
+        ++idx
         # Optional
         if idx < nodes.size && (typeid nodes[idx] == typeid parsergen.syntax_tree && nodes[idx].root == "capture-list")
             # Recursive Visit capture-list
             this.visit_capture_list(nodes[idx++].nodes)
         end
         # Visit term "]"
-        ++idx; target.print("]")
+        ++idx
+        stack.push_front("function")
         # Visit term "("
-        ++idx; target.print("(")
+        ++idx
         # Optional
         if idx < nodes.size && (typeid nodes[idx] == typeid parsergen.syntax_tree && nodes[idx].root == "argument-list")
             # Recursive Visit argument-list
-            this.visit_argument_list(nodes[idx++].nodes)
+            this.visit_argument_list(nodes[idx++].nodes, false)
         end
         # Visit term ")"
-        ++idx; target.print(")")
+        ++idx
+        var arg_list = new array
+        while typeid stack.front != typeid string || stack.front != "function"
+            arg_list.push_front(stack.front.first : stack.front.second)
+            stack.pop_front()
+        end
+        stack.pop_front()
+        stack.front.argument_list := arg_list
         # Recursive Visit lambda-body
         this.visit_lambda_body(nodes[idx++].nodes)
+        lambda_list.push_back(stack.front)
+        target.print("ecs.init_lambda(\"ecs_lambda_" + lambda_list.size + "\"")
+        var capture_str = ", "
+        foreach it in stack.front.capture_list
+            capture_str += it.first + ", "
+        end
+        capture_str.cut(2)
+        target.print(capture_str + ")")
+        stack.pop_front()
     end
     function visit_relat_expr(nodes)
         var idx = 0
@@ -802,28 +827,29 @@ class main
             if !matched && (typeid nodes[idx] == typeid parsergen.token_type && nodes[idx].data == "{")
                 matched = true
                 # Visit term "{"
-                ++idx; target.println("{")
-                ++indent
+                ++idx
                 # Repeat
                 while idx < nodes.size && (typeid nodes[idx] == typeid parsergen.syntax_tree && nodes[idx].root == "statement")
+                    if stack.front.body_stmts == null
+                        stack.front.body_stmts = new array
+                    end
                     # Recursive Visit statement
-                    this.visit_statement(nodes[idx++].nodes)
+                    stack.front.body_stmts.push_back(nodes[idx++].nodes)
+                    # this.visit_statement(nodes[idx++].nodes)
                     # Repeat
                     while idx < nodes.size && (typeid nodes[idx] == typeid parsergen.token_type && nodes[idx].type == "endl")
                         # Visit endl token
                         ++idx
                     end
                 end
-                --indent
-                # Visit term "}"
-                ++idx; target.print("}")
             end
             if !matched && (typeid nodes[idx] == typeid parsergen.token_type && nodes[idx].data == "->")
                 matched = true
                 # Visit term "->"
-                ++idx; target.print("->")
+                ++idx
                 # Recursive Visit cond-expr
-                this.visit_cond_expr(nodes[idx++].nodes)
+                stack.front.body_expr = nodes[idx++].nodes
+                # this.visit_cond_expr(nodes[idx++].nodes)
             end
             if !matched
             	# Error
@@ -831,7 +857,7 @@ class main
             end
         end
     end
-    function visit_argument_list(nodes)
+    function visit_argument_list(nodes, print)
         var idx = 0
         # Condition
         block
@@ -839,9 +865,16 @@ class main
             if !matched && (typeid nodes[idx] == typeid parsergen.token_type && nodes[idx].data == "...")
                 matched = true
                 # Visit term "..."
-                ++idx; target.print("...")
+                ++idx
+                if print
+                    target.print("...")
+                else
+                    stack.push_front(nodes[idx].data : {"vargs" : null}.to_hash_map())
+                end
                 # Visit id token
-                target.print(nodes[idx++].data)
+                if print
+                    target.print(nodes[idx++].data)
+                end
             end
             if !matched && (typeid nodes[idx] == typeid parsergen.token_type && nodes[idx].data == "=" || typeid nodes[idx] == typeid parsergen.token_type && nodes[idx].type == "id")
                 matched = true
@@ -854,7 +887,11 @@ class main
                     stack.push_front(nodes[idx].data : new hash_map)
                 end
                 # Visit id token
-                target.print(nodes[idx++].data)
+                if print
+                    target.print(nodes[idx++].data)
+                else
+                    ++idx
+                end
                 # Optional
                 if idx < nodes.size && (typeid nodes[idx] == typeid parsergen.token_type && nodes[idx].data == ":")
                     # Visit term ":"
@@ -866,9 +903,12 @@ class main
                 # Repeat
                 while idx < nodes.size && (typeid nodes[idx] == typeid parsergen.token_type && nodes[idx].data == ",")
                     # Visit term ","
-                    ++idx; target.print(", ")
+                    ++idx
+                    if print
+                        target.print(", ")
+                    end
                     # Recursive Visit argument-list
-                    this.visit_argument_list(nodes[idx++].nodes)
+                    this.visit_argument_list(nodes[idx++].nodes, print)
                 end
             end
             if !matched
@@ -1517,7 +1557,7 @@ class main
         # Optional
         if idx < nodes.size && (typeid nodes[idx] == typeid parsergen.syntax_tree && nodes[idx].root == "argument-list")
             # Recursive Visit argument-list
-            this.visit_argument_list(nodes[idx++].nodes)
+            this.visit_argument_list(nodes[idx++].nodes, true)
         end
         # Visit term ")"
         ++idx; target.print(")")
@@ -1821,8 +1861,94 @@ class main
         end
     end
     function run(os, ast)
-        this.target = os
+        var buff = new iostream.char_buff
+        this.target = buff.get_ostream()
         this.target.println("import ecs")
         this.visit_begin(ast.nodes)
+        this.target = os
+        target.println("#!/usr/bin/env cs")
+        target.println("# Generated by Extended CovScript Compiler")
+        target.println("# DO NOT MODIFY")
+        target.print("# Date: " + to_string(runtime.local_time()))
+        for i = 0, i < lambda_list.size, ++i
+            target.println("struct __ecs_lambda_impl_" + to_string(i + 1) + "__")
+            indent = 1
+            link dat = lambda_list[i]
+            foreach it in dat.capture_list
+                print_indent()
+                target.println("var " + it.first + " = null")
+            end
+            print_indent()
+            target.print("function construct(")
+            if !dat.capture_list.empty()
+                var str = new string
+                foreach it in dat.capture_list
+                    str += "_" + it.first + ", "
+                end
+                str.cut(2)
+                target.print(str)
+            end
+            target.println(")")
+            ++indent
+            foreach it in dat.capture_list
+                print_indent()
+                if it.second
+                    target.println("this." + it.first + " = _" + it.first)
+                else
+                    target.println("this." + it.first + " := _" + it.first)
+                end
+            end
+            --indent
+            print_indent()
+            target.println("end")
+            print_indent()
+            target.print("function call(")
+            if !dat.argument_list.empty()
+                var str = new string
+                foreach it in dat.argument_list
+                    if it.second.exist("vargs")
+                        str += "..." + it.first + ", "
+                    else
+                        str += it.first + ", "
+                    end
+                end
+                str.cut(2)
+                target.print(str)
+            end
+            target.println(")")
+            ++indent
+            print_indent()
+            target.println("link self = this.call")
+            foreach it in dat.argument_list
+                link map = it.second
+                if map.exist("pass-by-value")
+                    print_indent()
+                    target.println(it.first + " := clone(" + it.first + ")")
+                end
+                if map.exist("check-type")
+                    print_indent()
+                    target.print("ecs.check_type(\"" + it.first + "\", " + it.first + ", ")
+                    this.visit_visit_expr(map["check-type"])
+                    target.println(")")
+                end
+            end
+            if dat.body_stmts != null
+                foreach it in dat.body_stmts
+                    this.visit_statement(it)
+                end
+            end
+            if dat.body_expr != null
+                print_indent()
+                target.print("return ")
+                this.visit_cond_expr(dat.body_expr)
+                target.println("")
+            end
+            --indent
+            print_indent()
+            target.println("end")
+            target.println("end")
+            target.println("ecs.add_lambda(\"ecs_lambda_" + to_string(i + 1) + "\", __ecs_lambda_impl_"+ to_string(i + 1) + "__)")
+        end
+        target.println(buff)
     end
 end
