@@ -2104,6 +2104,7 @@ function main(cmd_args)
     var parser = new parsergen.generator
     var codegen = new generator
     codegen.minmal = minmal
+    ecs_parser.grammar.ext = ".*\\.ecs"
     parser.add_grammar("ecs-lang", ecs_parser.grammar)
     parser.from_file(cmd_args.at(1))
     if parser.ast != null
