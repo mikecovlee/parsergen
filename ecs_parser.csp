@@ -1,6 +1,6 @@
 #!/usr/bin/env cs
 #
-# Covariant Script Parser Generator: Grammar of Extended CovScript(ECS Lang) v1.1.2
+# Covariant Script Parser Generator: Grammar of Extended CovScript(ECS Lang) v1.1.3
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -37,7 +37,7 @@ var covscript_lexical = {
     "msig" : regex.build("^(\\+(\\+|=)?|-(-|=|>)?|\\*=?|/=?|%=?|\\^=?)$"),
     "lsig" : regex.build("^(>|<|&|(\\|)|&&|(\\|\\|)|!|==?|!=?|>=?|<=?)$"),
     "brac" : regex.build("^(\\(|\\)|\\[|\\]|\\{|\\}|,)$"),
-    "ign" : regex.build("^([ \\f\\r\\t\\v]+|#.*\\n?|@.*\\n?)$"),
+    "ign" : regex.build("^([ \\f\\r\\t\\v]+|#.*|@.*)$"),
     "err" : regex.build("^(\"|\'|(\\|)|\\.\\.)$")
 }.to_hash_map()
 @end
@@ -59,7 +59,7 @@ var covscript_syntax = {
     )},
     # Bootstrap
     "stmts" : {
-        syntax.repeat(syntax.ref("statement"), syntax.nlook(syntax.ref("endblock")), syntax.repeat(syntax.token("endl")))
+        syntax.repeat(syntax.nlook(syntax.ref("endblock")), syntax.ref("statement"), syntax.repeat(syntax.token("endl")))
     },
     "decl-stmts" : {
         syntax.repeat(syntax.ref("declaration"), syntax.repeat(syntax.token("endl")))
