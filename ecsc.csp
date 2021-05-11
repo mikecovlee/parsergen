@@ -494,12 +494,6 @@ class main
     end
     function visit_else_stmt(nodes)
         var idx = 0
-        if !stack.empty() && stack.front == "elif"
-            stack.pop_front()
-            print_indent()
-            target.println("end")
-            --indent
-        end
         # Visit term "else"
         print_indent()
         ++idx; target.println("else")
@@ -1006,6 +1000,7 @@ class main
     end
     function visit_if_stmt(nodes)
         var idx = 0
+        stack.push_front("if")
         # Visit term "if"
         ++idx; target.print("if ")
         # Recursive Visit basic-expr
@@ -1021,6 +1016,13 @@ class main
             # Recursive Visit stmts
             this.visit_stmts(nodes[idx++].nodes)
         end
+        while !stack.empty() && stack.front == "elif"
+            stack.pop_front()
+            print_indent()
+            target.println("end")
+            --indent
+        end
+        stack.pop_front()
         # Visit term "end"
         print_indent()
         target.println("end")
