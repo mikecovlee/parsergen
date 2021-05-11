@@ -83,17 +83,22 @@ class main
         # Optional
         if idx < nodes.size && (typeid nodes[idx] == typeid parsergen.token_type && nodes[idx].data == ".")
             # Visit term "."
-            ++idx; target.print(".")
+            ++idx
             # Condition
             block
                 var matched = false
                 if !matched && (typeid nodes[idx] == typeid parsergen.token_type && nodes[idx].data == "*")
                     matched = true
                     # Visit term "*"
-                    ++idx; target.print("*")
+                    if !stack.empty() && stack.front == "import_wildcard"
+                        stack.pop_front()
+                    else
+                        stack.push_front("import_wildcard")
+                    end
                 end
                 if !matched && (typeid nodes[idx] == typeid parsergen.syntax_tree && nodes[idx].root == "module-list")
                     matched = true
+                    target.print(".")
                     # Recursive Visit module-list
                     this.visit_module_list(nodes[idx++].nodes)
                 end
@@ -732,7 +737,7 @@ class main
     function visit_import_stmt(nodes)
         var idx = 0
         # Visit term "import"
-        ++idx; target.print("import ")
+        ++idx
         # Recursive Visit import-list
         this.visit_import_list(nodes[idx++].nodes)
         # Recursive Visit endline
@@ -1414,11 +1419,22 @@ class main
         --indent
     end
     function visit_import_list(nodes)
-        var idx = 0
+        var idx = 0, wildcard = false
+        target.print("import ")
         # Recursive Visit module-list
         this.visit_module_list(nodes[idx++].nodes)
+        if !stack.empty() && stack.front == "import_wildcard"
+            wildcard = true
+            idx = 0
+            target.print("; using ")
+            # Recursive Visit module-list
+            this.visit_module_list(nodes[idx++].nodes)
+        end
         # Optional
         if idx < nodes.size && (typeid nodes[idx] == typeid parsergen.token_type && nodes[idx].data == "as")
+            if wildcard
+                throw runtime.exception("Can not bind name alias to wildcard symbol.")
+            end
             # Visit term "as"
             ++idx; target.print(" as ")
             # Visit id token
@@ -1427,7 +1443,7 @@ class main
         # Optional
         if idx < nodes.size && (typeid nodes[idx] == typeid parsergen.token_type && nodes[idx].data == ",")
             # Visit term ","
-            ++idx; target.print(", ")
+            ++idx; target.println("")
             # Recursive Visit import-list
             this.visit_import_list(nodes[idx++].nodes)
         end
