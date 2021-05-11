@@ -1971,8 +1971,23 @@ end
 import ecs_parser, regex
 
 var cmd_args = context.cmd_args
+var compiler_args = new string
 var output = false
 var minmal = false
+
+function show_help()
+@begin
+    system.out.println(
+        "Usage: ecs [options] <ECS FILE>\n\n" +
+        "Options:\n" +
+        "    -h        Show help information\n" +
+        "    -o        Output compile result\n" +
+        "    -m        Output minimal result\n" +
+        "    -c<ARGS>  Pass parameters to CovScript\n"
+    )
+@end
+    system.exit(0)
+end
 
 block
     var cmd = new array
@@ -1980,8 +1995,17 @@ block
         if it[0] == '-'
             switch it
                 default
-                    system.out.println("ECSC: Unknown Option \"" + it + "\"")
-                    system.exit(0)
+                    var reg = regex.build("^-c(.+)$")
+                    var result = reg.match(it)
+                    if !result.empty()
+                        compiler_args = result.str(1)
+                    else
+                        system.out.println("Error: Unknown Option \"" + it + "\"")
+                        system.exit(0)
+                    end
+                end
+                case "-h"
+                    show_help()
                 end
                 case "-o"
                     output = true
@@ -1997,9 +2021,13 @@ block
     swap(cmd, cmd_args)
 end
 
+if !output
+    minmal = true
+end
+
 if cmd_args.size != 2
-    system.out.println("Usage: ecs [options] <ECS FILE>")
-    system.exit(0)
+    system.out.println("Error: no input file.")
+    show_help()
 end
 
 var parser = new parsergen.generator
@@ -2016,11 +2044,11 @@ if parser.ast != null
         var result = reg.match(cmd_args.at(1))
         if !result.empty()
             var name = visitor.run(result.str(1), parser.ast)
-            system.run("cs " + name)
+            system.run("cs " + compiler_args + " " + name)
         end
     else
         system.path.mkdir_p("./.ecs_output/")
         var name = visitor.run("./.ecs_output/" + to_string(runtime.hash(cmd_args.at(1))), parser.ast)
-        system.run("cs " + name)
+        system.run("cs " + compiler_args + " " + name)
     end
 end
