@@ -11,3 +11,9 @@ function param_gcnew(type, args)
     data->initialize(args...)
     return move(data)
 end
+
+function check_type(name, id, type)
+    if typeid id != typeid type
+        throw runtime.exception("Wrong Type for function argument \"" + name + "\".")
+    end
+end

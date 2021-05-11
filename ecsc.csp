@@ -847,17 +847,21 @@ class main
                 matched = true
                 # Optional
                 if idx < nodes.size && (typeid nodes[idx] == typeid parsergen.token_type && nodes[idx].data == "=")
+                    stack.push_front(nodes[++idx].data : {"pass-by-value" : null}.to_hash_map())
                     # Visit term "="
-                    ++idx; target.print("=")
+                    # target.print("=")
+                else
+                    stack.push_front(nodes[idx].data : new hash_map)
                 end
                 # Visit id token
                 target.print(nodes[idx++].data)
                 # Optional
                 if idx < nodes.size && (typeid nodes[idx] == typeid parsergen.token_type && nodes[idx].data == ":")
                     # Visit term ":"
-                    ++idx; target.print(":")
+                    ++idx
                     # Recursive Visit visit-expr
-                    this.visit_visit_expr(nodes[idx++].nodes)
+                    stack.front.second.insert("check-type", nodes[idx++].nodes)
+                    # this.visit_visit_expr(nodes[idx++].nodes)
                 end
                 # Repeat
                 while idx < nodes.size && (typeid nodes[idx] == typeid parsergen.token_type && nodes[idx].data == ",")
@@ -1503,6 +1507,7 @@ class main
     end
     function visit_function_stmt(nodes)
         var idx = 0
+        stack.push_front("function")
         # Visit term "function"
         ++idx; target.print("function ")
         # Visit id token
@@ -1521,6 +1526,24 @@ class main
             # Visit term "override"
             ++idx; target.print(" override")
         end
+        target.println("")
+        ++indent
+        while typeid stack.front != typeid string || stack.front != "function"
+            link map = stack.front.second
+            if map.exist("pass-by-value")
+                print_indent()
+                target.println(stack.front.first + " := clone(" + stack.front.first + ")")
+            end
+            if map.exist("check-type")
+                print_indent()
+                target.print("ecs.check_type(\"" + stack.front.first + "\", " + stack.front.first + ", ")
+                this.visit_visit_expr(map["check-type"])
+                target.println(")")
+            end
+            stack.pop_front()
+        end
+        stack.pop_front()
+        --indent
         # Recursive Visit function-body
         this.visit_function_body(nodes[idx++].nodes)
     end
@@ -1532,7 +1555,7 @@ class main
             if !matched && (typeid nodes[idx] == typeid parsergen.token_type && nodes[idx].data == "{")
                 matched = true
                 # Visit term "{"
-                ++idx; target.println("")
+                ++idx
                 # Recursive Visit stmts
                 this.visit_stmts(nodes[idx++].nodes)
                 # Visit term "}"
@@ -1541,7 +1564,7 @@ class main
             if !matched && (typeid nodes[idx] == typeid parsergen.token_type && nodes[idx].type == "endl")
                 matched = true
                 # Visit endl token
-                ++idx; target.println("")
+                ++idx
                 # Recursive Visit stmts
                 this.visit_stmts(nodes[idx++].nodes)
                 # Visit term "end"
