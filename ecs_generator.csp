@@ -1,4 +1,4 @@
-# Extended Covariant Script Generator: v1.1.0
+# Extended Covariant Script Generator: v1.1.1
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -29,6 +29,12 @@ struct lambda_type
     var argument_list = null
     var body_stmts = null
     var body_expr = null
+end
+
+struct catch_type
+    var id = null
+    var type = null
+    var body = null
 end
 
 class generator
@@ -500,19 +506,17 @@ class generator
     function visit_catch_stmt(nodes)
         var idx = 0
         # Visit term "catch"
-        print_indent()
-        ++idx; target.print("catch ")
+        ++idx
         # Visit id token
-        target.print(nodes[idx++].data)
+        stack.front.id = nodes[idx++].data
         # Optional
         if idx < nodes.size && (typeid nodes[idx] == typeid parsergen.token_type && nodes[idx].data == ":")
             # Visit term ":"
-            ++idx; target.print(":")
+            ++idx
             # Recursive Visit visit-expr
-            this.visit_visit_expr(nodes[idx++].nodes)
+            stack.front.type = nodes[idx++].nodes
+            # this.visit_visit_expr(nodes[idx++].nodes)
         end
-        # Visit endl token
-        target.print(nodes[idx++].data)
     end
     function visit_else_stmt(nodes)
         var idx = 0
@@ -1513,12 +1517,15 @@ class generator
     function visit_throw_stmt(nodes)
         var idx = 0
         # Visit term "throw"
-        ++idx; target.print("throw")
+        ++idx; target.print("throw ")
         # Optional
         if idx < nodes.size && (typeid nodes[idx] == typeid parsergen.syntax_tree && nodes[idx].root == "expr")
-            target.print(" ")
+            target.print("ecs.throw_exception(")
             # Recursive Visit expr
             this.visit_expr(nodes[idx++].nodes)
+            target.print(")")
+        else
+            target.print("runtime.exception(\"__ecs_except__\")")
         end
         # Recursive Visit endline
         this.visit_endline(nodes[idx++].nodes)
@@ -1556,13 +1563,64 @@ class generator
         ++idx; target.println("")
         # Recursive Visit stmts
         this.visit_stmts(nodes[idx++].nodes)
+        stack.push_front("try")
         # Repeat
         while idx < nodes.size && (typeid nodes[idx] == typeid parsergen.syntax_tree && nodes[idx].root == "catch-stmt")
+            stack.push_front(new catch_type)
             # Recursive Visit catch-stmt
             this.visit_catch_stmt(nodes[idx++].nodes)
             # Recursive Visit stmts
-            this.visit_stmts(nodes[idx++].nodes)
+            stack.front.body = nodes[idx++].nodes
+            # this.visit_stmts(nodes[idx++].nodes)
         end
+        print_indent()
+        target.println("catch __ecs_except__")
+        ++indent
+        var default_catch = null
+        print_indent()
+        target.println("var __ecs_catch__ = false")
+        print_indent()
+        target.println("if __ecs_except__.what == \"__ecs_except__\"")
+        ++indent
+        while typeid stack.front != typeid string || stack.front != "try"
+            var dat = stack.pop_front()
+            if dat.type == null
+                if default_catch != null
+                    throw runtime.exception("Reduplicated generic catch statement.")
+                end
+                default_catch = dat
+                continue
+            else
+                print_indent()
+                target.print("if !__ecs_catch__ && typeid ecs.current_except == typeid ")
+                this.visit_visit_expr(dat.type)
+                target.println("")
+            end
+            ++indent
+            print_indent()
+            target.println("__ecs_catch__ = true")
+            print_indent()
+            target.println("var " + default_catch.id + " = ecs.get_exception()")
+            --indent
+            this.visit_stmts(dat.body)
+            print_indent()
+            target.println("end")
+        end
+        --indent
+        print_indent()
+        target.println("end")
+        if default_catch != null
+            print_indent()
+            target.println("if !__ecs_catch__")
+            ++indent
+            print_indent()
+            target.println("link " + default_catch.id + " = __ecs_except__")
+            --indent
+            this.visit_stmts(default_catch.body)
+        end
+        print_indent()
+        target.println("end")
+        --indent
         # Visit term "end"
         print_indent()
         target.println("end")

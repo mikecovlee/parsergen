@@ -1,4 +1,4 @@
-# Extended Covariant Script Header: v1.0.0
+# Extended Covariant Script Header: v1.0.1
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -41,4 +41,17 @@ end
 function init_lambda(...args)
     link func = args.pop_front()
     return param_new(func, args).call
+end
+
+var current_except = null
+
+function throw_exception(data)
+    current_except = data
+    throw runtime.exception("__ecs_except__")
+end
+
+function get_exception()
+    var except = null
+    swap(except, current_except)
+    return move(except)
 end

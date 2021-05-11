@@ -3,9 +3,19 @@
 
 import codec.*
 
+struct my_except
+    var xxxx = null
+    function construct(str)
+        xxxx = "My Except: " + str
+    end
+end
+
 var a = 0, b = 2
 var func = [a, =b](=n:number)
 {
+    if n < 0
+        throw new my_except{"Hello"}
+    end
     --n
     a += n
     b -= n
@@ -21,7 +31,9 @@ system.out.println("n = " + n)
 system.out.println("a = " + a)
 system.out.println("b = " + b)
 try
-    func("hello")
+    func(system.in.input())
+catch e:my_except
+    system.out.println(e.xxxx)
 catch e
     system.out.println(e.what)
 end
