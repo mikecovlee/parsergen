@@ -17,4 +17,8 @@ system.out.println("f = " + func(n))
 system.out.println("n = " + n)
 system.out.println("a = " + a)
 system.out.println("b = " + b)
-func("hello")
+try
+    func("hello")
+catch e
+    system.out.println(e.what)
+end
