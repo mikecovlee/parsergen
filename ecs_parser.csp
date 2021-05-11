@@ -1,6 +1,4 @@
-#!/usr/bin/env cs
-#
-# Covariant Script Parser Generator: Grammar of Extended CovScript(ECS Lang) v1.1.0
+# Covariant Script Parser Generator: Grammar of Extended CovScript(ECS Lang) v1.1.3
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -33,12 +31,13 @@ var covscript_lexical = {
     "num" : regex.build("^[0-9]+\\.?([0-9]+)?$"),
     "str" : regex.build("^(\"|\"([^\"]|\\\\\")*\"?)$"),
     "char" : regex.build("^(\'|\'([^\']|\\\\(0|\\\\|\'|\"|\\w))\'?)$"),
-    "bsig" : regex.build("^(;|:|\\?|\\.\\.?|\\.\\.\\.)$"),
+    "bsig" : regex.build("^(;|:=?|\\?|\\.\\.?|\\.\\.\\.)$"),
     "msig" : regex.build("^(\\+(\\+|=)?|-(-|=|>)?|\\*=?|/=?|%=?|\\^=?)$"),
     "lsig" : regex.build("^(>|<|&|(\\|)|&&|(\\|\\|)|!|==?|!=?|>=?|<=?)$"),
     "brac" : regex.build("^(\\(|\\)|\\[|\\]|\\{|\\}|,)$"),
-    "ign" : regex.build("^([ \\f\\r\\t\\v]+|#.*\\n?|@.*\\n?)$"),
-    "err" : regex.build("^(\"|\'|&|(\\|)|\\.\\.)$")
+    "prep" : regex.build("^@.*$"),
+    "ign" : regex.build("^([ \\f\\r\\t\\v]+|#.*)$"),
+    "err" : regex.build("^(\"|\'|(\\|)|\\.\\.)$")
 }.to_hash_map()
 @end
 
@@ -59,7 +58,7 @@ var covscript_syntax = {
     )},
     # Bootstrap
     "stmts" : {
-        syntax.repeat(syntax.ref("statement"), syntax.nlook(syntax.ref("endblock")), syntax.repeat(syntax.token("endl")))
+        syntax.repeat(syntax.nlook(syntax.ref("endblock")), syntax.ref("statement"), syntax.repeat(syntax.token("endl")))
     },
     "decl-stmts" : {
         syntax.repeat(syntax.ref("declaration"), syntax.repeat(syntax.token("endl")))
@@ -71,6 +70,7 @@ var covscript_syntax = {
         {syntax.ref("catch-stmt")}
     )},
     "statement" : {syntax.cond_or(
+        {syntax.ref("prep-stmt")},
         {syntax.ref("package-stmt")},
         {syntax.ref("import-stmt")},
         {syntax.ref("var-stmt")},
@@ -92,6 +92,7 @@ var covscript_syntax = {
         {syntax.ref("expr-stmt")}
     )},
     "declaration" : {syntax.cond_or(
+        {syntax.ref("prep-stmt")},
         {syntax.ref("namespace-stmt")},
         {syntax.ref("var-stmt")},
         {syntax.ref("using-stmt")},
@@ -99,6 +100,9 @@ var covscript_syntax = {
         {syntax.ref("class-stmt")}
     )},
     # Statements
+    "prep-stmt" : {
+        syntax.token("prep"), syntax.token("endl")
+    },
     "package-stmt" : {
         syntax.term("package"), syntax.token("id"), syntax.ref("endline")
     },
@@ -198,16 +202,8 @@ var covscript_syntax = {
     },
     "class-stmt" : {
         syntax.cond_or({syntax.term("class")}, {syntax.term("struct")}), syntax.token("id"), syntax.optional(syntax.term("extends"), syntax.ref("visit-expr")), syntax.token("endl"),
-        syntax.ref("class-stmts"), syntax.term("end"), syntax.token("endl")
+        syntax.ref("decl-stmts"), syntax.term("end"), syntax.token("endl")
     },
-    "class-stmts" : {
-        syntax.repeat(syntax.optional(syntax.ref("member-contorl")), syntax.ref("declaration"), syntax.repeat(syntax.token("endl")))
-    },
-    "member-contorl" : {syntax.cond_or(
-        {syntax.term("public")},
-        {syntax.term("protected")},
-        {syntax.term("private")}
-    )},
     "control-stmt" : {
         syntax.cond_or({syntax.term("break")}, {syntax.term("continue")}), syntax.ref("endline")
     },
@@ -231,6 +227,7 @@ var covscript_syntax = {
     )},
     "asi-op" : {syntax.cond_or(
         {syntax.term("=")},
+        {syntax.term(":=")},
         {syntax.term("+=")},
         {syntax.term("-=")},
         {syntax.term("*=")},
@@ -287,6 +284,7 @@ var covscript_syntax = {
         {syntax.term("++")},
         {syntax.term("--")},
         {syntax.term("*")},
+        {syntax.term("&")},
         {syntax.term("-")},
         {syntax.term("!")}
     )},
@@ -310,7 +308,7 @@ var covscript_syntax = {
     )},
     "element" : {
         syntax.cond_or({syntax.token("id")}, {syntax.term("("), syntax.ref("single-expr"), syntax.term(")")}),
-        syntax.repeat(syntax.cond_or({syntax.ref("fcall")}, {syntax.ref("index")}))
+        syntax.repeat(syntax.nlook(syntax.token("endl")), syntax.cond_or({syntax.ref("fcall")}, {syntax.ref("index")}))
     },
     "constant" : {syntax.cond_or(
         {syntax.token("num")},

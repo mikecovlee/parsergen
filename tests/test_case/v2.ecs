@@ -1,0 +1,27 @@
+@require: 210503
+@charset: utf8
+
+import codec.*
+
+var a = 0, b = 2
+var func = [a, =b](=n:number)
+{
+    --n
+    a += n
+    b -= n
+    return a + b
+}
+
+var n = 10
+system.out.println("n = " + n)
+([](n)->++n)(n)
+system.out.println("n = " + n)
+system.out.println("f = " + func(n))
+system.out.println("n = " + n)
+system.out.println("a = " + a)
+system.out.println("b = " + b)
+try
+    func("hello")
+catch e
+    system.out.println(e.what)
+end

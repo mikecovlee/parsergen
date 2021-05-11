@@ -4,7 +4,7 @@ import parsergen,
        covscript.*, 
        network.tcp.x as tcp_socket
 
-var a = new tcp_socket.get_type(){"192.168.233.233", 3306}
+var a = new tcp_socket.get_type(){"192.168.233.233", 3306}, b = gcnew array
 
 if a > 0
     system.out.println("a")

@@ -1,6 +1,4 @@
-#!/usr/bin/env cs
-#
-# Covariant Script Parser Generator v1.1.0
+# Covariant Script Parser Generator v1.1.2
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -19,6 +17,8 @@
 # Email:   lee@covariant.cn, mikecovlee@163.com
 # Github:  https://github.com/mikecovlee
 # Website: http://covscript.org.cn
+
+@require: 210503
 
 package parsergen
 
@@ -121,6 +121,7 @@ class lexer_type
     var output = new array
     var buff = new string
     var data = null
+    var wpos = {0, 0}
     var pos = {0, 0, 0}
     function cursor_forward()
         ++pos[2]
@@ -143,17 +144,17 @@ class lexer_type
     function process_token()
         if lexical_set.size > 1
             if lexical_set.exist("err")
-                error("Unexpected input \"" + buff + "\"", pos)
+                error("Unexpected input \"" + buff + "\"", wpos)
                 lexical_set = new hash_set
-                continue
+                return
             else
                 if lexical_set.exist("ign")
                     lexical_set.erase("ign")
                 end
                 if lexical_set.size > 1
-                    error("Ambiguous lexical \"" + buff + "\"", pos)
+                    error("Ambiguous lexical \"" + buff + "\"", wpos)
                     lexical_set = new hash_set
-                    continue
+                    return
                 end
             end
         end
@@ -164,7 +165,6 @@ class lexer_type
         end
     end
     function run(lexical, text)
-        var wpos = {0, 0}
         data = text
         while pos[2] != data.size
             var ch = data[pos[2]]
@@ -338,9 +338,7 @@ class parser_type
     # Parsing Methods
     function accept()
         link prev_stage = pop_stage()
-        if !prev_stage.product.nodes.empty()
-            push(prev_stage.product)
-        end
+        push(prev_stage.product)
         stack.front.cursor = prev_stage.cursor
     end
     function merge()
@@ -379,7 +377,7 @@ class parser_type
             parse_log("End Ignore")
             on_ign = false
         end
-        return cur
+        return move(cur)
     end
     function ignore()
         var cur = try_ignore()
@@ -390,13 +388,13 @@ class parser_type
     # Match Prediction
     function predict(set, fail_on_eof)
         if set != null && !eof()
-            var token = peek()
+            link token = peek()
             if set.data_set.exist(token.data) || set.type_set.exist(token.type)
                 return true
             end
             var cur = try_ignore()
             if cur != null && cur < lex.size
-                token = lex.at(cur)
+                token := lex.at(cur)
                 if set.data_set.exist(token.data) || set.type_set.exist(token.type)
                     return true
                 end
@@ -601,7 +599,7 @@ class parser_type
                         break
                     end
                     if predict_cache.exist(it.data)
-                        it.boot = predict_cache.at(it.data)
+                        it.boot := predict_cache.at(it.data)
                         set.merge(it.boot)
                         break
                     end
@@ -611,7 +609,7 @@ class parser_type
                         var ret = prep_syntax(syn.at(it.data))
                         if !ret.empty()
                             predict_cache.insert(it.data, ret)
-                            it.boot = ret
+                            it.boot := ret
                             set.merge(ret)
                         end
                         stack.pop_front()
@@ -622,7 +620,7 @@ class parser_type
                     if it.boot == null
                         var ret = prep_syntax(it.data)
                         if !ret.empty()
-                            it.boot = ret
+                            it.boot := ret
                         end
                     end
                 end
@@ -632,7 +630,7 @@ class parser_type
                     else
                         var ret = prep_syntax(it.data)
                         if !ret.empty()
-                            it.boot = ret
+                            it.boot := ret
                             set.merge(ret)
                         end
                     end
@@ -643,7 +641,7 @@ class parser_type
                     else
                         var ret = prep_syntax(it.data)
                         if !ret.empty()
-                            it.boot = ret
+                            it.boot := ret
                             set.merge(ret)
                         end
                     end
@@ -655,7 +653,7 @@ class parser_type
                         else
                             var ret = prep_syntax(cond_p.data)
                             if !ret.empty()
-                                cond_p.boot = ret
+                                cond_p.boot := ret
                                 set.merge(ret)
                             end
                         end
@@ -672,7 +670,7 @@ class parser_type
             predict_cache.insert(it.first, prep_syntax(it.second))
         end
         if predict_cache.exist("ignore")
-            ign_bootset = predict_cache.ignore
+            ign_bootset := predict_cache.ignore
         end
         prep_syntax(syn.begin)
         push_stage("begin")

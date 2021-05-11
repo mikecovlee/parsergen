@@ -1,0 +1,12 @@
+{
+    "Name": "ecs_generator",
+    "Info": "Extended CovScript(ECS Lang) Generator",
+    "Author": "Michael Lee",
+    "Version": "1.1.0",
+    "Target": "https://raw.githubusercontent.com/mikecovlee/parsergen/main/ecs_generator.csp",
+    "Dependencies": [
+        "ecs_parser",
+        "parsergen",
+        "regex"
+    ]
+}
