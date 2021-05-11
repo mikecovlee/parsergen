@@ -37,7 +37,8 @@ var covscript_lexical = {
     "msig" : regex.build("^(\\+(\\+|=)?|-(-|=|>)?|\\*=?|/=?|%=?|\\^=?)$"),
     "lsig" : regex.build("^(>|<|&|(\\|)|&&|(\\|\\|)|!|==?|!=?|>=?|<=?)$"),
     "brac" : regex.build("^(\\(|\\)|\\[|\\]|\\{|\\}|,)$"),
-    "ign" : regex.build("^([ \\f\\r\\t\\v]+|#.*|@.*)$"),
+    "prep" : regex.build("^@.*$"),
+    "ign" : regex.build("^([ \\f\\r\\t\\v]+|#.*)$"),
     "err" : regex.build("^(\"|\'|(\\|)|\\.\\.)$")
 }.to_hash_map()
 @end
@@ -71,6 +72,7 @@ var covscript_syntax = {
         {syntax.ref("catch-stmt")}
     )},
     "statement" : {syntax.cond_or(
+        {syntax.ref("prep-stmt")},
         {syntax.ref("package-stmt")},
         {syntax.ref("import-stmt")},
         {syntax.ref("var-stmt")},
@@ -92,6 +94,7 @@ var covscript_syntax = {
         {syntax.ref("expr-stmt")}
     )},
     "declaration" : {syntax.cond_or(
+        {syntax.ref("prep-stmt")},
         {syntax.ref("namespace-stmt")},
         {syntax.ref("var-stmt")},
         {syntax.ref("using-stmt")},
@@ -99,6 +102,9 @@ var covscript_syntax = {
         {syntax.ref("class-stmt")}
     )},
     # Statements
+    "prep-stmt" : {
+        syntax.token("prep"), syntax.token("endl")
+    },
     "package-stmt" : {
         syntax.term("package"), syntax.token("id"), syntax.ref("endline")
     },

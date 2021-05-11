@@ -51,6 +51,11 @@ class main
         # Condition
         block
             var matched = false
+            if !matched && (typeid nodes[idx] == typeid parsergen.syntax_tree && nodes[idx].root == "prep-stmt")
+                matched = true
+                # Recursive Visit prep-stmt
+                this.visit_prep_stmt(nodes[idx++].nodes)
+            end
             if !matched && (typeid nodes[idx] == typeid parsergen.syntax_tree && nodes[idx].root == "namespace-stmt")
                 matched = true
                 # Recursive Visit namespace-stmt
@@ -196,6 +201,11 @@ class main
         # Condition
         block
             var matched = false
+            if !matched && (typeid nodes[idx] == typeid parsergen.syntax_tree && nodes[idx].root == "prep-stmt")
+                matched = true
+                # Recursive Visit prep-stmt
+                this.visit_prep_stmt(nodes[idx++].nodes)
+            end
             if !matched && (typeid nodes[idx] == typeid parsergen.syntax_tree && nodes[idx].root == "package-stmt")
                 matched = true
                 # Recursive Visit package-stmt
@@ -857,6 +867,14 @@ class main
             	# Error
             	return
             end
+        end
+    end
+    function visit_prep_stmt(nodes)
+        var idx = 0
+        # Visit prep token
+        link prep = nodes[idx++].data
+        if prep != "@begin" && prep != "@end"
+            target.println(prep)
         end
     end
     function visit_argument_list(nodes, print)

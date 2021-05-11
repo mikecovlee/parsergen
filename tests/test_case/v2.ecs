@@ -1,3 +1,6 @@
+@require: 210503
+@charset: utf8
+
 import codec.*
 
 var a = 0, b = 2
