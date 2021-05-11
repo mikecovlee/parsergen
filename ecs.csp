@@ -18,13 +18,7 @@ function check_type(name, id, type)
     end
 end
 
-var lambda_map = new hash_map
-
 function init_lambda(...args)
-    link id = args.pop_front()
-    return param_new(lambda_map.at(id), args).call
-end
-
-function add_lambda(id, func)
-    lambda_map.insert(id, func)
+    link func = args.pop_front()
+    return param_new(func, args).call
 end

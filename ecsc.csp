@@ -712,7 +712,7 @@ class main
         # Recursive Visit lambda-body
         this.visit_lambda_body(nodes[idx++].nodes)
         lambda_list.push_back(stack.front)
-        target.print("ecs.init_lambda(\"ecs_lambda_" + lambda_list.size + "\"")
+        target.print("ecs.init_lambda(global.__ecs_lambda_impl_" + lambda_list.size + "__")
         var capture_str = ", "
         foreach it in stack.front.capture_list
             capture_str += it.first + ", "
@@ -1947,7 +1947,6 @@ class main
             print_indent()
             target.println("end")
             target.println("end")
-            target.println("ecs.add_lambda(\"ecs_lambda_" + to_string(i + 1) + "\", __ecs_lambda_impl_"+ to_string(i + 1) + "__)")
         end
         target.println(buff)
     end
