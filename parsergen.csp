@@ -704,10 +704,6 @@ function print_header(txt)
     system.out.println("")
 end
 
-function test(txt)
-    system.out.println(txt)
-end
-
 function print_error(file, code, err)
     foreach it in err
         system.out.print("File \"" + file + "\", line " + (it.pos[1] + 1) + ": ")
