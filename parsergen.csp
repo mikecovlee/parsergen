@@ -411,6 +411,7 @@ class parser_type
     # Accept: Matching Successfully
     # Reject: Matching Failed, Rollback
     function match(it)
+        #foreach iter in stack do print_test("stack" + stack.size + ", cursor : " + to_string(iter.cursor) + " , root : " + to_string(iter.product.root) + "  , nodes : " + to_string(iter.product.nodes))
         switch it.type
             case syntax_type.token
                 parse_log("Match  " + it.data)
@@ -459,6 +460,10 @@ class parser_type
                 end
             end
             case syntax_type.ref
+                if eof()
+                    parse_log("End Of File")
+                    return parse_state.eof
+                end
                 if it.boot == null ? !predict(predict_cache.at(it.data), false) : !predict(it.boot, false)
                     parse_log("Predict Failed: " + it.data)
                     return parse_state.reject
@@ -506,6 +511,10 @@ class parser_type
                 end
             end
             case syntax_type.repeat
+                if eof()
+                    parse_log("End Of File")
+                    return parse_state.eof
+                end
                 if !predict(it.boot, false)
                     parse_log("Predict Failed in REPEAT")
                     return parse_state.accept
@@ -533,6 +542,10 @@ class parser_type
                 end
             end
             case syntax_type.opt
+                if eof()
+                    parse_log("End Of File")
+                    return parse_state.eof
+                end
                 if !predict(it.boot, false)
                     parse_log("Predict Failed in OPTIONAL")
                     return parse_state.accept
@@ -585,6 +598,7 @@ class parser_type
     # Preparation(Generating boot set of parsing stages)
     function prep_syntax(seq)
         var set = new bootset_type
+
         foreach it in seq
             switch it.type
                 case syntax_type.term
@@ -668,6 +682,7 @@ class parser_type
     function run(grammar, lex_output)
         syn = grammar
         lex = lex_output
+        
         foreach it in syn
             predict_cache.insert(it.first, prep_syntax(it.second))
         end
@@ -688,6 +703,18 @@ function print_header(txt)
     system.out.println(txt)
     foreach i in range(txt.size) do system.out.print('#')
     system.out.println("")
+end
+
+function print_test(txt)
+    foreach i in range(txt.size) do system.out.print('-')
+    system.out.println("")
+    system.out.println(txt)
+    foreach i in range(txt.size) do system.out.print('-')
+    system.out.println("")
+end
+
+function test(txt)
+    system.out.println(txt)
 end
 
 function print_error(file, code, err)
@@ -738,7 +765,7 @@ class generator
     var parser = null
     # Options
     var stop_on_error = true
-    var enable_log = false
+    var enable_log = true
     # Private Methods
     var file_path = "<FILE>"
     function priv_run(lang)
