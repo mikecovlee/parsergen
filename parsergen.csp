@@ -411,7 +411,6 @@ class parser_type
     # Accept: Matching Successfully
     # Reject: Matching Failed, Rollback
     function match(it)
-        #foreach iter in stack do print_test("stack" + stack.size + ", cursor : " + to_string(iter.cursor) + " , root : " + to_string(iter.product.root) + "  , nodes : " + to_string(iter.product.nodes))
         switch it.type
             case syntax_type.token
                 parse_log("Match  " + it.data)
@@ -705,14 +704,6 @@ function print_header(txt)
     system.out.println("")
 end
 
-function print_test(txt)
-    foreach i in range(txt.size) do system.out.print('-')
-    system.out.println("")
-    system.out.println(txt)
-    foreach i in range(txt.size) do system.out.print('-')
-    system.out.println("")
-end
-
 function test(txt)
     system.out.println(txt)
 end
@@ -765,7 +756,7 @@ class generator
     var parser = null
     # Options
     var stop_on_error = true
-    var enable_log = true
+    var enable_log = false
     # Private Methods
     var file_path = "<FILE>"
     function priv_run(lang)
