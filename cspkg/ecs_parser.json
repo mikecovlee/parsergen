@@ -2,7 +2,7 @@
     "Name": "ecs_parser",
     "Info": "Extended CovScript(ECS Lang) Parser",
     "Author": "Michael Lee",
-    "Version": "1.1.3",
+    "Version": "1.1.4",
     "Target": "https://raw.githubusercontent.com/mikecovlee/parsergen/main/ecs_parser.csp",
     "Dependencies": [
         "parsergen",
