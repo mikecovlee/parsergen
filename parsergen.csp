@@ -1,4 +1,4 @@
-# Covariant Script Parser Generator v1.2.0
+# Covariant Script Parser Generator v1.2.1
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -534,11 +534,11 @@ class parser_type
                     parse_log("End Of File")
                     return parse_state.eof
                 end
-                if !predict(it.boot, false)
-                    parse_log("Predict Failed in REPEAT")
-                    return parse_state.accept
-                end
                 loop
+                    if !predict(it.boot, false)
+                        parse_log("Predict Failed in REPEAT")
+                        return parse_state.accept
+                    end
                     push_stage("repeat")
                     var result = match_syntax(it.data)
                     switch result
