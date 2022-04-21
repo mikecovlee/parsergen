@@ -39,6 +39,8 @@ test([b, =c](ttx : number, =xxx){
     end
 })
 
+var (a, ..., c) = test()
+
 function test(a : string, b : number, =c)
 {
     return fuck_you()

@@ -711,7 +711,7 @@ class parser_type
             boot.pending_ref = hash_set.subtract(boot.pending_ref, solved_ref)
         end
         if boot != null
-              show_boot(boot)          
+            show_boot(boot)          
         end
         return !unsolved_ref
     end

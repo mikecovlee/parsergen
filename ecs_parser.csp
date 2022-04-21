@@ -126,7 +126,7 @@ var covscript_syntax = {
     },
     "var-bind-list" : {syntax.cond_or(
         {syntax.token("id")},
-        {syntax.token("...")},
+        {syntax.term("...")},
         {syntax.ref("var-bind")}
     )},
     "var-list" : {
