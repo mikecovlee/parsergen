@@ -158,8 +158,49 @@ var cminus_syntax = {
     }
 }.to_hash_map()
 
+var json_lexical = {
+    "val" : regex.build("^\\w+$"),
+    "num" : regex.build("^[0-9]+\\.?([0-9]+)?$"),
+    "sig" : regex.build("^(:|,|\\[|\\]|\\{|\\})$"),
+    "str" : regex.build("^(\"|\"([^\"\\\\]|\\\\.?)*\"?)$"),
+    "ign" : regex.build("^\\s+$"),
+    "err" : regex.build("^\"$")
+}.to_hash_map()
+
+var json_syntax = {
+    "begin" : {syntax.cond_or(
+        {syntax.ref("object")},
+        {syntax.ref("array")}
+    )},
+    "object" : {
+        syntax.term("{"), syntax.optional(syntax.ref("members")), syntax.term("}")
+    },
+    "members" : {
+        syntax.ref("pair"), syntax.repeat(syntax.term(","), syntax.ref("pair"))
+    },
+    "pair" : {
+        syntax.token("str"), syntax.term(":"), syntax.ref("value")
+    },
+    "array" : {
+        syntax.term("["), syntax.optional(syntax.ref("elements")), syntax.term("]")
+    },
+    "elements" : {
+        syntax.ref("value"), syntax.repeat(syntax.term(","), syntax.ref("value"))
+    },
+    "value" : {syntax.cond_or(
+        {syntax.token("str")},
+        {syntax.token("num")},
+        {syntax.ref("object")},
+        {syntax.ref("array")},
+        {syntax.term("true")},
+        {syntax.term("false")},
+        {syntax.term("null")}
+    )}
+}.to_hash_map()
+
 var tiny_grammar = new parsergen.grammar
 var cminus_grammar = new parsergen.grammar
+var json_grammar = new parsergen.grammar
 var main = new parsergen.generator
 
 tiny_grammar.lex = tiny_lexical
@@ -170,12 +211,17 @@ cminus_grammar.lex = cminus_lexical
 cminus_grammar.stx = cminus_syntax
 cminus_grammar.ext = ".*\\.c-"
 
+json_grammar.lex = json_lexical
+json_grammar.stx = json_syntax
+json_grammar.ext = ".*\\.json"
+
 main.add_grammar("tiny", tiny_grammar)
 main.add_grammar("c-", cminus_grammar)
+main.add_grammar("json", json_grammar)
 main.add_grammar("ecs-lang", ecs_parser.grammar)
 
 main.stop_on_error = false
-# main.enable_log = true
+main.enable_log = true
 
 var time_start = runtime.time()
 main.from_file(context.cmd_args.at(1))

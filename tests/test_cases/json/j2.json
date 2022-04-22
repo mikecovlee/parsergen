@@ -1,0 +1,105 @@
+{
+	"bitwise" : 
+	{
+		"Author" : "CovScript Organization",
+		"Dependencies" : [],
+		"FileName" : "bitwise.cse",
+		"Info" : "Bitwise Extension",
+		"Name" : "bitwise",
+		"Target" : "http://mirrors.covariant.cn/cspkg/windows/x86_64/bitwise.cse",
+		"Version" : "1.0.3_ABI210503"
+	},
+	"codec" : 
+	{
+		"Author" : "CovScript Organization",
+		"Dependencies" : [],
+		"FileName" : "codec.cse",
+		"Info" : "Codec Extension",
+		"Name" : "codec",
+		"Target" : "http://mirrors.covariant.cn/cspkg/windows/x86_64/codec.cse",
+		"Version" : "1.1.1_ABI210503"
+	},
+	"curl" : 
+	{
+		"Author" : "CovScript Organization",
+		"Dependencies" : [],
+		"FileName" : "curl.cse",
+		"Info" : "cURL Extension",
+		"Name" : "curl",
+		"Target" : "http://mirrors.covariant.cn/cspkg/windows/x86_64/curl.cse",
+		"Version" : "1.0.3_ABI210503"
+	},
+	"ecs" : 
+	{
+		"Author" : "Michael Lee",
+		"Dependencies" : 
+		[
+			"sdk_extension"
+		],
+		"FileName" : "ecs.csp",
+		"Info" : "Extended CovScript(ECS Lang) Header",
+		"Name" : "ecs",
+		"Target" : "http://mirrors.covariant.cn/cspkg/universal/ecs.csp",
+		"Version" : "1.1.0"
+	},
+	"imgui" : 
+	{
+		"Author" : "CovScript Organization",
+		"Dependencies" : [],
+		"FileName" : "imgui.cse",
+		"Info" : "ImGUI OpenGL3 Extension",
+		"Name" : "imgui",
+		"Target" : "http://mirrors.covariant.cn/cspkg/windows/x86_64/imgui.cse",
+		"Version" : "1.86_v1_ABI210503"
+	},
+	"imgui_font" : 
+	{
+		"Author" : "CovScript Organization",
+		"Dependencies" : [],
+		"FileName" : "imgui_font.cse",
+		"Info" : "ImGUI Font Extension",
+		"Name" : "imgui_font",
+		"Target" : "http://mirrors.covariant.cn/cspkg/windows/x86_64/imgui_font.cse",
+		"Version" : "1.86_v1_ABI210503"
+	},
+	"network" : 
+	{
+		"Author" : "CovScript Organization",
+		"Dependencies" : [],
+		"FileName" : "network.cse",
+		"Info" : "Socket Extension",
+		"Name" : "network",
+		"Target" : "http://mirrors.covariant.cn/cspkg/windows/x86_64/network.cse",
+		"Version" : "1.21.0_v1_ABI210503"
+	},
+	"process" : 
+	{
+		"Author" : "CovScript Organization",
+		"Dependencies" : [],
+		"FileName" : "process.cse",
+		"Info" : "Process Extension",
+		"Name" : "process",
+		"Target" : "http://mirrors.covariant.cn/cspkg/windows/x86_64/process.cse",
+		"Version" : "1.0.1_ABI210503"
+	},
+	"regex" : 
+	{
+		"Author" : "CovScript Organization",
+		"Dependencies" : [],
+		"FileName" : "regex.cse",
+		"Info" : "Regex Extension",
+		"Name" : "regex",
+		"Target" : "http://mirrors.covariant.cn/cspkg/windows/x86_64/regex.cse",
+		"Version" : "1.0.1_ABI210503"
+	},
+	"sdk_extension" : 
+	{
+		"Author" : "CovScript Organization",
+		"Dependencies" : [],
+		"FileName" : "sdk_extension.cse",
+		"Info" : "CovScript SDK Extension",
+		"Name" : "sdk_extension",
+		"Target" : "http://mirrors.covariant.cn/cspkg/windows/x86_64/sdk_extension.cse",
+		"Version" : "1.0.1_ABI210503"
+	}
+}
