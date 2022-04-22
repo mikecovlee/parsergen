@@ -155,7 +155,7 @@ var cminus_syntax = {
     )},
     "args" : {
         syntax.ref("expression"), syntax.repeat(syntax.term(","), syntax.ref("expression"))
-    }
+    } 
 }.to_hash_map()
 
 var json_lexical = {

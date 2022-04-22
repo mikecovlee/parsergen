@@ -554,7 +554,7 @@ class parser_type
                             return parse_state.accept
                         end
                         case parse_state.eof
-                            merge()
+                            pop_stage()
                             return parse_state.eof
                         end
                     end
@@ -766,7 +766,23 @@ class parser_type
         on_ign = false
         lex = lex_output
         push_stage("begin")
-        return match_syntax(syn.begin) == parse_state.eof && stack.size == 1
+        var result = match_syntax(syn.begin)
+        switch result
+            case parse_state.accept
+                system.out.println("ACCEPT")
+            end
+            case parse_state.stop
+                system.out.println("STOP")
+            end
+            case parse_state.reject
+                system.out.println("REJECT")
+            end
+            case parse_state.eof
+                system.out.println("EOF")
+            end
+        end
+        system.out.println(stack.size)
+        return eof() && result == parse_state.accept && stack.size == 1
     end
     function run(grammar, lex_output)
         init(grammar)
