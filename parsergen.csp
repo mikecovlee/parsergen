@@ -1,4 +1,4 @@
-# Covariant Script Parser Generator v1.2.1
+# Covariant Script Parser Generator v1.2.2
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -237,10 +237,9 @@ end
 namespace parse_state
 @begin
     constant
-        accept =  1,
-        stop   =  2,
-        reject = -1,
-        eof    = -2
+        accept = 2,
+        reject = 1,
+        eof    = 0
 @end
 end
 
@@ -373,6 +372,7 @@ class parser_type
         foreach it in seq
             var result = this.match(it)
             if result != parse_state.accept
+                parse_log("Incomplete Match")
                 return result
             end
         end
@@ -408,22 +408,25 @@ class parser_type
         end
     end
     # Match Prediction
-    function predict(set, fail_on_eof)
-        if set != null && !set.empty() && !eof()
+    function predict(set)
+        if eof()
+            return parse_state.eof
+        end
+        if set != null && !set.empty()
             link token = peek()
             if set.data_set.exist(token.data) || set.type_set.exist(token.type)
-                return true
+                return parse_state.accept
             end
             var cur = try_ignore()
             if cur != null && cur < lex.size
                 token := lex.at(cur)
                 if set.data_set.exist(token.data) || set.type_set.exist(token.type)
-                    return true
+                    return parse_state.accept
                 end
             end
-            return false
+            return parse_state.reject
         else
-            return !fail_on_eof
+            return parse_state.accept
         end
     end
     # Match:  Terminal Symbols
@@ -479,47 +482,44 @@ class parser_type
                 end
             end
             case syntax_type.ref
-                if eof()
-                    parse_log("End Of File")
-                    return parse_state.eof
-                end
-                if !predict(predict_cache.at(it.data), false)
-                    parse_log("Predict Failed: " + it.data)
-                    return parse_state.reject
+                var result = predict(predict_cache.at(it.data))
+                if result != parse_state.accept
+                    parse_log("Predict Failed in " + it.data)
+                    return result
                 end
                 push_stage(it.data)
                 parse_log("Deduce " + it.data)
                 ++log_indent
-                var result = match_syntax(syn.at(it.data))
+                result = match_syntax(syn.at(it.data))
                 --log_indent
-                if result == parse_state.reject
-                    parse_log("Reject " + it.data)
-                    pop_stage()
-                    return parse_state.reject
-                else
+                if result == parse_state.accept
                     parse_log("Accept " + it.data)
                     accept()
-                    if result != parse_state.eof
-                        return parse_state.accept
-                    else
-                        return parse_state.eof
-                    end
+                    return parse_state.accept
+                else
+                    parse_log("Reject " + it.data)
+                    pop_stage()
+                    return result
                 end
             end
             case syntax_type.nlook
-                if predict(it.boot, true)
-                    parse_log("Predict Failed in NLOOK")
-                    return parse_state.stop
+                var result = predict(it.boot)
+                switch result
+                    case parse_state.reject
+                        parse_log("Predict Failed in NLOOK")
+                        return parse_state.accept
+                    end
+                    case parse_state.eof
+                        parse_log("Predict Reaches EOF in NLOOK")
+                        return parse_state.eof
+                    end
                 end
                 push_stage("nlook")
-                var result = match_syntax(it.data)
+                result = match_syntax(it.data)
                 pop_stage()
                 switch result
                     case parse_state.accept
-                        return parse_state.stop
-                    end
-                    case parse_state.stop
-                        return parse_state.stop
+                        return parse_state.reject
                     end
                     case parse_state.reject
                         return parse_state.accept
@@ -530,72 +530,81 @@ class parser_type
                 end
             end
             case syntax_type.repeat
-                if eof()
-                    parse_log("End Of File")
-                    return parse_state.eof
-                end
                 loop
-                    if !predict(it.boot, false)
-                        parse_log("Predict Failed in REPEAT")
-                        return parse_state.accept
+                    var result = predict(it.boot)
+                    switch result
+                        case parse_state.reject
+                            parse_log("Predict Failed in REPEAT")
+                            return parse_state.accept
+                        end
+                        case parse_state.eof
+                            parse_log("Predict Reaches EOF in REPEAT")
+                            return parse_state.accept
+                        end
                     end
                     push_stage("repeat")
-                    var result = match_syntax(it.data)
+                    result = match_syntax(it.data)
                     switch result
                         case parse_state.accept
                             merge()
-                        end
-                        case parse_state.stop
-                            merge()
-                            return parse_state.accept
                         end
                         case parse_state.reject
                             pop_stage()
                             return parse_state.accept
                         end
                         case parse_state.eof
-                            merge()
+                            pop_stage()
                             return parse_state.eof
                         end
                     end
                 end
             end
             case syntax_type.opt
-                if eof()
-                    parse_log("End Of File")
-                    return parse_state.eof
-                end
-                if !predict(it.boot, false)
-                    parse_log("Predict Failed in OPTIONAL")
-                    return parse_state.accept
+                var result = predict(it.boot)
+                switch result
+                    case parse_state.reject
+                        parse_log("Predict Failed in OPTIONAL")
+                        return parse_state.accept
+                    end
+                    case parse_state.eof
+                        parse_log("Predict Reaches EOF in OPTIONAL")
+                        return parse_state.accept
+                    end
                 end
                 push_stage("optional")
-                var result = match_syntax(it.data)
-                if result != parse_state.reject
-                    merge()
-                else
-                    pop_stage()
-                end
-                if result != parse_state.eof
-                    return parse_state.accept
-                else
-                    return parse_state.eof
+                result = match_syntax(it.data)
+                switch result
+                    case parse_state.accept
+                        merge()
+                        return parse_state.accept
+                    end
+                    case parse_state.reject
+                        pop_stage()
+                        return parse_state.accept
+                    end
+                    case parse_state.eof
+                        pop_stage()
+                        return parse_state.eof
+                    end
                 end
             end
             case syntax_type.cond
                 foreach seq in it.data
-                    if !predict(seq.boot, false)
-                        parse_log("Predict Failed in CONDITION")
-                        continue
+                    var result = predict(seq.boot)
+                    switch result
+                        case parse_state.reject
+                            parse_log("Predict Failed in CONDITION")
+                            continue
+                        end
+                        case parse_state.eof
+                            parse_log("Predict Reaches EOF in CONDITION")
+                            return parse_state.eof
+                        end
                     end
                     push_stage("cond_or")
-                    var result = match_syntax(seq.data)
+                    result = match_syntax(seq.data)
                     switch result
                         case parse_state.accept
-                            merge()
-                            return parse_state.accept
-                        end
-                        case parse_state.stop
                             merge()
                             return parse_state.accept
                         end
@@ -603,12 +612,11 @@ class parser_type
                             pop_stage()
                         end
                         case parse_state.eof
-                            merge()
+                            pop_stage()
                             return parse_state.eof
                         end
                     end
                 end
-                error("No matching syntax", peek().pos)
                 return parse_state.reject
             end
         end
@@ -766,7 +774,26 @@ class parser_type
         on_ign = false
         lex = lex_output
         push_stage("begin")
-        return match_syntax(syn.begin) == parse_state.eof && stack.size == 1
+        var result = match_syntax(syn.begin)
+        if stack.size != 1
+            error("Production not complete.", {0, 0})
+        end
+        switch result
+            case parse_state.accept
+                if !eof()
+                    error("Cannot reach EOF.", peek().pos)
+                    return false
+                end
+            end
+            case parse_state.reject
+                return false
+            end
+            case parse_state.eof
+                error("Production not complete.", {0, 0})
+                return false
+            end
+        end
+        return true
     end
     function run(grammar, lex_output)
         init(grammar)

@@ -6,7 +6,7 @@ import parsergen,
 
 var a = new tcp_socket.get_type(){"192.168.233.233", 3306}, b = gcnew array
 
-if a > 0
+if a > 0 then
     system.out.println("a")
 else if a == 0 &&
          b != 0 &&!
