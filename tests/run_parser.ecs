@@ -162,7 +162,7 @@ var json_lexical = {
     "val" : regex.build("^\\w+$"),
     "num" : regex.build("^[0-9]+\\.?([0-9]+)?$"),
     "sig" : regex.build("^(:|,|\\[|\\]|\\{|\\})$"),
-    "str" : regex.build("^(\"|\"([^\"\\\\]|\\\\.?)*\"?)$"),
+    "str" : regex.build("^(\"|\"([^\"]|\\\\\")*\"?)$"),
     "ign" : regex.build("^\\s+$"),
     "err" : regex.build("^\"$")
 }.to_hash_map()

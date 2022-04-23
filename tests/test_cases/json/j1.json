@@ -1,5 +1,6 @@
 {
 	"arch" : "x86_64",
+	"home" : "C:/Program Files (x86)/CovScript/",
 	"source" : "http://mirrors.covariant.cn/cspkg/index.json",
 	"timeout_ms" : "3000"
 }
