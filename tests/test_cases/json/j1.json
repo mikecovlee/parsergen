@@ -2,3 +2,4 @@
 	"arch" : "x86_64",
 	"source" : "http://mirrors.covariant.cn/cspkg/index.json",
 	"timeout_ms" : "3000"
+}

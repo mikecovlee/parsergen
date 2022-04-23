@@ -277,7 +277,7 @@ var covscript_syntax = {
     "unary-expr" : {syntax.cond_or(
         {syntax.ref("unary-op"), syntax.ref("unary-expr")},
         {syntax.cond_or({syntax.term("new")}, {syntax.term("gcnew")}), syntax.ref("unary-expr"), syntax.optional(syntax.ref("array"))},
-        {syntax.ref("prim-expr"), syntax.nlook(syntax.token("endl")), syntax.optional(syntax.ref("postfix-expr"))}
+        {syntax.ref("prim-expr"), syntax.optional(syntax.nlook(syntax.token("endl")), syntax.ref("postfix-expr"))}
     )},
     "unary-op" : {syntax.cond_or(
         {syntax.term("typeid")},
