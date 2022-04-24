@@ -1,4 +1,4 @@
-# Extended Covariant Script Header: v1.0.1
+# Extended Covariant Script Header: v1.1.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -18,29 +18,28 @@
 # Github:  https://github.com/mikecovlee
 # Website: http://covscript.org.cn
 
+import sdk_extension as sdk
+
 package ecs
 
-function param_new(type, args)
-    var data = new type
-    data.construct(args...)
-    return move(data)
+@begin
+var special_type = {
+    "type"      : {sdk.typeids.type}.to_hash_set(),
+    "range"     : {sdk.typeids.range}.to_hash_set(),
+    "istream"   : {sdk.typeids.istream}.to_hash_set(),
+    "ostream"   : {sdk.typeids.ostream}.to_hash_set(),
+    "function"  : {sdk.typeids.callable, sdk.typeids.memberfn}.to_hash_set(),
+    "exception" : {sdk.typeids.exception}.to_hash_set(),
+    "namespace" : {sdk.typeids.namespace}.to_hash_set()
+}.to_hash_map()
+@end
+
+function validate_type(id, type)
+    return typeid id == typeid type
 end
 
-function param_gcnew(type, args)
-    var data = gcnew type
-    data->construct(args...)
-    return move(data)
-end
-
-function check_type(name, id, type)
-    if typeid id != typeid type
-        throw runtime.exception("Wrong Type for function argument \"" + name + "\".")
-    end
-end
-
-function init_lambda(...args)
-    link func = args.pop_front()
-    return param_new(func, args).call
+function validate_type_s(id, type)
+    return special_type.at(type).exist(sdk.typeids.get_real(id))
 end
 
 var current_except = null
@@ -54,4 +53,47 @@ function get_exception()
     var except = null
     swap(except, current_except)
     return move(except)
+end
+
+# For Legacy CovScript Only
+
+function handle_exception(e)
+    if e.what == "__ecs_except__"
+        return get_exception()
+    else
+        return e
+    end
+end
+
+function param_new(type, args)
+    var data = new type
+    if !args.empty()
+        data.construct(args...)
+    end
+    return move(data)
+end
+
+function param_gcnew(type, args)
+    var data = gcnew type
+    if !args.empty()
+        data->construct(args...)
+    end
+    return move(data)
+end
+
+function check_type_s(name, id, type)
+    if !validate_type_s(id, type)
+        throw throw_exception(runtime.exception("Wrong type for function argument \"" + name + "\"."))
+    end
+end
+
+function check_type(name, id, type)
+    if typeid id != typeid type
+        throw throw_exception(runtime.exception("Wrong type for function argument \"" + name + "\"."))
+    end
+end
+
+function init_lambda(...args)
+    link func = args.pop_front()
+    return param_new(func, args).call
 end

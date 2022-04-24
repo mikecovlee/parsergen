@@ -25,11 +25,15 @@
 package ecs_generator
 
 namespace ecs_info
-    constant version = "4.0.0 Cuon alpinus(Preview) Build 2"
-    constant std_version = "210601"
+    constant version = "4.0.0 Cuon alpinus(Preview) Build 4"
+    constant std_version = "210602"
 end
 
-import parsergen
+import parsergen, ecs
+
+struct module_type
+    var list = new array
+end
 
 struct lambda_type
     var capture_list = new array
@@ -65,6 +69,39 @@ class generator
         if !minmal
             foreach i in range(indent) do target.print('\t')
         end
+    end
+    function get_id_of_visit_expr(nodes)
+        if nodes.size == 1 && typeid nodes[0] == typeid parsergen.syntax_tree && nodes[0].root == "object"
+            nodes := nodes[0].nodes
+            if nodes.size == 1 && typeid nodes[0] == typeid parsergen.syntax_tree && nodes[0].root == "element"
+                nodes := nodes[0].nodes
+                if nodes.size == 1 && typeid nodes[0] == typeid parsergen.token_type && nodes[0].type == "id"
+                    return nodes[0].data
+                end
+            end
+        end
+        return null
+    end
+    function get_id_of_equal_expr(nodes)
+        if nodes.size == 1 && typeid nodes[0] == typeid parsergen.syntax_tree && nodes[0].root == "relat-expr"
+            nodes := nodes[0].nodes
+            if nodes.size == 1 && typeid nodes[0] == typeid parsergen.syntax_tree && nodes[0].root == "add-expr"
+                nodes := nodes[0].nodes
+                if nodes.size == 1 && typeid nodes[0] == typeid parsergen.syntax_tree && nodes[0].root == "mul-expr"
+                    nodes := nodes[0].nodes
+                    if nodes.size == 1 && typeid nodes[0] == typeid parsergen.syntax_tree && nodes[0].root == "unary-expr"
+                        nodes := nodes[0].nodes
+                        if nodes.size == 1 && typeid nodes[0] == typeid parsergen.syntax_tree && nodes[0].root == "prim-expr"
+                            nodes := nodes[0].nodes
+                            if nodes.size == 1 && typeid nodes[0] == typeid parsergen.syntax_tree && nodes[0].root == "visit-expr"
+                                return get_id_of_visit_expr(nodes[0].nodes)
+                            end
+                        end
+                    end
+                end
+            end
+        end
+        return null
     end
     function visit_declaration(nodes)
         print_indent()
@@ -111,7 +148,10 @@ class generator
     function visit_module_list(nodes)
         var idx = 0
         # Visit id token
-        target.print(nodes[idx++].data)
+        if stack.front.list.empty()
+            target.print(nodes[idx].data)
+        end
+        stack.front.list.push_back(nodes[idx++])
         # Optional
         if idx < nodes.size && (typeid nodes[idx] == typeid parsergen.token_type && nodes[idx].data == ".")
             # Visit term "."
@@ -122,15 +162,10 @@ class generator
                 if !matched && (typeid nodes[idx] == typeid parsergen.token_type && nodes[idx].data == "*")
                     matched = true
                     # Visit term "*"
-                    if !stack.empty() && stack.front == "import_wildcard"
-                        stack.pop_front()
-                    else
-                        stack.push_front("import_wildcard")
-                    end
+                    stack.front.list.push_back(nodes[idx++])
                 end
                 if !matched && (typeid nodes[idx] == typeid parsergen.syntax_tree && nodes[idx].root == "module-list")
                     matched = true
-                    target.print(".")
                     # Recursive Visit module-list
                     this.visit_module_list(nodes[idx++].nodes)
                 end
@@ -1455,7 +1490,15 @@ class generator
     function visit_using_list(nodes)
         var idx = 0
         # Recursive Visit module-list
+        stack.push_front(new module_type)
         this.visit_module_list(nodes[idx++].nodes)
+        stack.front.list.pop_front()
+        if !stack.front.list.empty() && stack.front.list.back.data == "*"
+            error(stack.front.list.back.pos, "Can not use wildcard symbol in using statement.")
+        end
+        foreach it in stack.front.list
+            target.print("." + it.data) 
+        end
         # Optional
         if idx < nodes.size && (typeid nodes[idx] == typeid parsergen.token_type && nodes[idx].data == ",")
             # Visit term ","
@@ -1522,13 +1565,23 @@ class generator
         var idx = 0, wildcard = false
         target.print("import ")
         # Recursive Visit module-list
+        stack.push_front(new module_type)
         this.visit_module_list(nodes[idx++].nodes)
-        if !stack.empty() && stack.front == "import_wildcard"
-            wildcard = true
-            idx = 0
-            target.print("; using ")
-            # Recursive Visit module-list
-            this.visit_module_list(nodes[idx++].nodes)
+        if !stack.front.list.empty()
+            if stack.front.list.back.data == "*"
+                stack.front.list.pop_back()
+                wildcard = true
+                var str = "; using "
+                foreach it in stack.front.list
+                    str += it.data + "."
+                end
+                str.cut(1)
+                target.print(str)
+                stack.front.list.clear()
+            else
+                stack.front.list.pop_front()
+                foreach it in stack.front.list do target.print("." + it.data) 
+            end
         end
         # Optional
         if idx < nodes.size && (typeid nodes[idx] == typeid parsergen.token_type && nodes[idx].data == "as")
@@ -1539,7 +1592,12 @@ class generator
             ++idx; target.print(" as ")
             # Visit id token
             target.print(nodes[idx++].data)
+        else
+            if !stack.front.list.empty()
+                target.print(" as " + stack.front.list.back.data)
+            end
         end
+        stack.pop_front()
         # Optional
         if idx < nodes.size && (typeid nodes[idx] == typeid parsergen.token_type && nodes[idx].data == ",")
             # Visit term ","
@@ -1626,15 +1684,20 @@ class generator
                 continue
             else
                 print_indent()
-                target.print("if !__ecs_catch__ && typeid ecs.current_except == typeid ")
-                this.visit_visit_expr(dat.type)
-                target.println("")
+                var type_id = get_id_of_visit_expr(dat.type)
+                if type_id != null && ecs.special_type.exist(type_id)
+                    target.println("if !__ecs_catch__ && ecs.validate_type_s(ecs.current_except, \"" + type_id + "\")")
+                else
+                    target.print("if !__ecs_catch__ && ecs.validate_type(ecs.current_except, ")
+                    this.visit_visit_expr(dat.type)
+                    target.println(")")
+                end
             end
             ++indent
             print_indent()
             target.println("__ecs_catch__ = true")
             print_indent()
-            target.println("var " + default_catch.id + " = ecs.get_exception()")
+            target.println("var " + dat.id + " = ecs.get_exception()")
             --indent
             this.visit_stmts(dat.body)
             print_indent()
@@ -1651,9 +1714,9 @@ class generator
             target.println("link " + default_catch.id + " = __ecs_except__")
             --indent
             this.visit_stmts(default_catch.body)
+            print_indent()
+            target.println("end")
         end
-        print_indent()
-        target.println("end")
         --indent
         # Visit term "end"
         print_indent()
@@ -1690,9 +1753,14 @@ class generator
             end
             if map.exist("check-type")
                 print_indent()
-                target.print("ecs.check_type(\"" + stack.front.first + "\", " + stack.front.first + ", ")
-                this.visit_visit_expr(map["check-type"])
-                target.println(")")
+                var type_id = get_id_of_visit_expr(map["check-type"])
+                if type_id != null && ecs.special_type.exist(type_id)
+                    target.println("ecs.check_type_s(\"" + stack.front.first + "\", " + stack.front.first + ", \"" + type_id + "\")")
+                else
+                    target.print("ecs.check_type(\"" + stack.front.first + "\", " + stack.front.first + ", ")
+                    this.visit_visit_expr(map["check-type"])
+                    target.println(")")
+                end
             end
             stack.pop_front()
         end
@@ -1834,30 +1902,52 @@ class generator
     end
     function visit_equal_expr(nodes)
         var idx = 0
-        # Recursive Visit relat-expr
-        this.visit_relat_expr(nodes[idx++].nodes)
-        # Optional
-        if idx < nodes.size && (typeid nodes[idx] == typeid parsergen.token_type && nodes[idx].data == "==" || typeid nodes[idx] == typeid parsergen.token_type && nodes[idx].data == "!=")
-            # Condition
-            block
-                var matched = false
-                if !matched && (typeid nodes[idx] == typeid parsergen.token_type && nodes[idx].data == "==")
-                    matched = true
-                    # Visit term "=="
-                    ++idx; target.print(" == ")
+        if nodes.size > 1 && typeid nodes[1] == typeid parsergen.token_type && (nodes[1].data == "is" || nodes[1].data == "not")
+            var type_id = get_id_of_equal_expr(nodes[2].nodes)
+            if type_id != null && ecs.special_type.exist(type_id)
+                if nodes[1].data == "not"
+                    target.print("!")
                 end
-                if !matched && (typeid nodes[idx] == typeid parsergen.token_type && nodes[idx].data == "!=")
-                    matched = true
-                    # Visit term "!="
-                    ++idx; target.print(" != ")
+                target.print("ecs.validate_type_s(")
+                this.visit_relat_expr(nodes[0].nodes)
+                target.print(", \"" + type_id + "\")")
+            else
+                target.print("typeid(")
+                this.visit_relat_expr(nodes[0].nodes)
+                if nodes[1].data == "is"
+                    target.print(") == typeid(")
+                else
+                    target.print(") != typeid(")
                 end
-                if !matched
-                	# Error
-                	return
-                end
+                this.visit_equal_expr(nodes[2].nodes)
+                target.print(")")
             end
-            # Recursive Visit equal-expr
-            this.visit_equal_expr(nodes[idx++].nodes)
+        else
+            # Recursive Visit relat-expr
+            this.visit_relat_expr(nodes[idx++].nodes)
+            # Optional
+            if idx < nodes.size && (typeid nodes[idx] == typeid parsergen.token_type && nodes[idx].data == "==" || typeid nodes[idx] == typeid parsergen.token_type && nodes[idx].data == "!=")
+                # Condition
+                block
+                    var matched = false
+                    if !matched && (typeid nodes[idx] == typeid parsergen.token_type && nodes[idx].data == "==")
+                        matched = true
+                        # Visit term "=="
+                        ++idx; target.print(" == ")
+                    end
+                    if !matched && (typeid nodes[idx] == typeid parsergen.token_type && nodes[idx].data == "!=")
+                        matched = true
+                        # Visit term "!="
+                        ++idx; target.print(" != ")
+                    end
+                    if !matched
+                	    # Error
+                	    return
+                    end
+                end
+                # Recursive Visit equal-expr
+                this.visit_equal_expr(nodes[idx++].nodes)
+            end
         end
     end
     function visit_unary_op(nodes)
@@ -1899,6 +1989,11 @@ class generator
                 matched = true
                 # Visit term "!"
                 ++idx; target.print("!")
+            end
+            if !matched && (typeid nodes[idx] == typeid parsergen.token_type && nodes[idx].data == "not")
+                matched = true
+                # Visit term "not"
+                ++idx; target.print("not ")
             end
             if !matched
             	# Error
@@ -2050,9 +2145,14 @@ class generator
                 end
                 if map.exist("check-type")
                     print_indent()
-                    target.print("ecs.check_type(\"" + it.first + "\", " + it.first + ", ")
-                    this.visit_visit_expr(map["check-type"])
-                    target.println(")")
+                    var type_id = get_id_of_visit_expr(map["check-type"])
+                    if type_id != null && ecs.special_type.exist(type_id)
+                        target.println("ecs.check_type_s(\"" + it.first + "\", " + it.first + ", \"" + type_id + "\")")
+                    else
+                        target.print("ecs.check_type(\"" + it.first + "\", " + it.first + ", ")
+                        this.visit_visit_expr(map["check-type"])
+                        target.println(")")
+                    end
                 end
             end
             if dat.body_stmts != null
@@ -2071,129 +2171,7 @@ class generator
             target.println("end")
             target.println("end")
         end
-        target.println(buff)
+        target.print(buff)
         return file_name
-    end
-end
-
-import ecs_parser, regex
-
-function show_version()
-@begin
-    system.out.println(
-        "Version: " + ecs_info.version + "\n" +
-        "Copyright (C) 2017-2021 Michael Lee. All rights reserved.\n" +
-        "Please visit http://covscript.org.cn/ for more information.\n\n" +
-        "Metadata:\n" +
-        "  STD Version: " + ecs_info.std_version + "\n"
-    )
-@end
-    system.exit(0)
-end
-
-function show_help()
-@begin
-    system.out.println(
-        "Usage: ecs [options...] <FILE> [arguments...]\n\n" +
-        "Options:\n" +
-        "    Option   Function\n" +
-        "   -h        Show help information\n" +
-        "   -v        Show version infomation\n" +
-        "   -o        Save compile result\n" +
-        "   -m        Disable beautify\n" +
-        "   -c        Check grammar only\n" +
-        "   --<ARGS>  Pass parameters to CovScript\n"
-    )
-@end
-    system.exit(0)
-end
-
-var compiler_args = new string
-var file_name = new string
-var arguments = new string
-var output = false
-var minmal = false
-var no_run = false
-
-function process_args(cmd_args)
-    var index = 1
-    while index < cmd_args.size && cmd_args[index][0] == '-'
-        switch cmd_args[index]
-            default
-                var reg = regex.build("^--(.+)$")
-                var result = reg.match(cmd_args[index])
-                if !result.empty()
-                    compiler_args = result.str(1)
-                else
-                    system.out.println("Error: Unknown Option \"" + cmd_args[index] + "\"")
-                    system.exit(0)
-                end
-            end
-            case "-v"
-                show_version()
-            end
-            case "-h"
-                show_help()
-            end
-            case "-o"
-                output = true
-            end
-            case "-m"
-                minmal = true
-            end
-            case "-c"
-                no_run = true
-            end
-        end
-        ++index
-    end
-    if index == cmd_args.size
-        system.out.println("Error: no input file.")
-        system.exit(0)
-    end
-    file_name = cmd_args[index++]
-    while index < cmd_args.size
-        arguments += " " + cmd_args[index++] 
-    end
-end
-
-var ecs_reg = regex.build("^(.*)\\.ecs$")
-var lcs_reg = regex.build("^(.*)\\.(csc|csp)$")
-
-function match(reg, str)
-    return !reg.match(str).empty()
-end
-
-function main(cmd_args)
-    process_args(cmd_args)
-    if !match(regex.build(ecs_parser.grammar.ext), file_name)
-        system.out.println("Error: invalid input file.")
-        system.exit(0)
-    end
-    if !output
-        minmal = true
-    end
-    var parser = new parsergen.generator
-    parser.add_grammar("ecs-lang", ecs_parser.grammar)
-    parser.from_file(file_name)
-    if !no_run && parser.ast != null
-        if match(lcs_reg, file_name)
-            system.exit(system.run("cs " + compiler_args + " " + file_name + arguments))
-        end
-        var codegen = new generator
-        codegen.code_buff = parser.code_buff
-        codegen.file_name = file_name
-        codegen.minmal = minmal
-        if output
-            var result = ecs_reg.match(file_name)
-            if !result.empty()
-                var name = codegen.run(result.str(1), parser.ast)
-                system.exit(system.run("cs " + compiler_args + " " + name + arguments))
-            end
-        else
-            system.path.mkdir_p("./.ecs_output/")
-            var name = codegen.run("./.ecs_output/" + to_string(runtime.hash(file_name)), parser.ast)
-            system.exit(system.run("cs " + compiler_args + " " + name + arguments))
-        end
     end
 end
