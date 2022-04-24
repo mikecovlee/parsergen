@@ -1,4 +1,4 @@
-# Covariant Script Parser Generator v1.2.3
+# Covariant Script Parser Generator v1.2.4
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -450,6 +450,7 @@ class parser_type
                 if eof()
                     #%debug
                     parse_log("End Of File")
+                    error("Early EOF, expected token \'" + it.data + "\'", lex.back.pos)
                     return parse_state.eof
                 end
                 if peek().type != it.data
@@ -468,7 +469,7 @@ class parser_type
                 else
                     #%debug
                     parse_log("Reject " + it.data)
-                    error("Unexpected Token \'" + peek().data + "\'", peek().pos)
+                    error("Unexpected token \'" + peek().data + "\', expected <" + it.data + ">", peek().pos)
                     return parse_state.reject
                 end
             end
@@ -478,6 +479,7 @@ class parser_type
                 if eof()
                     #%debug
                     parse_log("End Of File")
+                    error("Early EOF, expected token \'" + it.data + "\'", lex.back.pos)
                     return parse_state.eof
                 end
                 if peek().data != it.data
@@ -496,7 +498,7 @@ class parser_type
                 else
                     #%debug
                     parse_log("Reject " + it.data)
-                    error("Unexpected Token \'" + peek().data + "\'", peek().pos)
+                    error("Unexpected token \'" + peek().data + "\', expected \'" + it.data + "\'", peek().pos)
                     return parse_state.reject
                 end
             end
@@ -820,26 +822,7 @@ class parser_type
         on_ign = false
         lex = lex_output
         push_stage("begin")
-        var result = match_syntax(syn.begin)
-        if stack.size != 1
-            error("Production not complete.", {0, 0})
-        end
-        switch result
-            case parse_state.accept
-                if !eof()
-                    error("Cannot reach EOF.", peek().pos)
-                    return false
-                end
-            end
-            case parse_state.reject
-                return false
-            end
-            case parse_state.eof
-                error("Production not complete.", {0, 0})
-                return false
-            end
-        end
-        return true
+        return match_syntax(syn.begin) == parse_state.accept && stack.size == 1 && eof()
     end
     function run(grammar, lex_output)
         init(grammar)
