@@ -221,7 +221,7 @@ main.add_grammar("json", json_grammar)
 main.add_grammar("ecs-lang", ecs_parser.grammar)
 
 main.stop_on_error = false
-main.enable_log = true
+# main.enable_log = true
 
 var time_start = runtime.time()
 main.from_file(context.cmd_args.at(1))
@@ -242,7 +242,7 @@ function compress_ast(n)
     end
 end
 
-if main.ast != null
+if main.enable_log && main.ast != null
     compress_ast(main.ast)
     parsergen.print_ast(main.ast)
 end
