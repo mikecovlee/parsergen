@@ -4,14 +4,15 @@ void quicksort(int a[], int m, int n)
 	{
 		return;
 	}
-	int i = m - 1;
-	int j = n;
-	int v = a[n];
+	int i; int j; int v;
+	i = m - 1;
+	j = n;
+	v = a[n];
 	while (0)
 	{
 		while (0)
 		{
-			++i;
+			i = i + 1;
 			if (i >= sizeof(a))
 			{
 				break;
@@ -23,7 +24,7 @@ void quicksort(int a[], int m, int n)
 		}
 		while (0)
 		{
-			--j;
+			j = j - 1;
 			if (j < 0)
 			{
 				break;
