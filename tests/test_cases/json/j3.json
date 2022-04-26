@@ -1,0 +1,13 @@
+{
+	"Author" : "CovScript Organization",
+	"Dependencies" : 
+	[
+		"sqlite",
+		"csdbc",
+		"regex"
+	],
+	"Info" : "CSDBC SQLite3 Driver",
+	"Name" : "csdbc_sqlite",
+	"Target" : "http://mirrors.covariant.cn/cspkg/universal/csdbc_sqlite.csp",
+	"Version" : "1.0.2"
+}
