@@ -1,0 +1,9 @@
+import parsergen
+
+class generator
+    function run(stx)
+        var parser = new parsergen.parser_type
+        parser.init(stx)
+        
+    end
+end
