@@ -1,9 +1,126 @@
-import parsergen
+import ecs_parser, parsergen
+
+constant syntax_type = parsergen.syntax_type
 
 class generator
+    var indent_width = 4
+    var indent_count = 0
+    var class_name = "parser"
+    var parser = null
+    var syntax = null
+    var ofs = null
+    function print_indent()
+        foreach i in range(indent_count*indent_width) do ofs.print(" ")
+    end
+    function println(msg)
+        foreach i in range(indent_count*indent_width) do ofs.print(" ")
+        ofs.println(msg)
+    end
+    function get_legal_name(id)
+        var name = id
+        for i = 0, i < name.size, ++i
+            if name[i] == '-'
+                name.assign(i, '_')
+            end
+        end
+        return move(name)
+    end
+    function gen_syntax_impl(name, seq)
+        println("parse_state " + class_name + "::match_" + get_legal_name(name) + "()")
+        println("{")
+        ++indent_count
+        println("push_stage(\"" + name + "\");")
+        println("parse_state state = parse_state::null;")
+        foreach it in seq
+            switch it.type
+                case syntax_type.token
+                    println("state = match_token(\"" + it.data + "\");")
+                end
+                case syntax_type.term
+                    println("state = match_term(\"" + it.data + "\");")
+                end
+                case syntax_type.ref
+                    println("state = match_" + get_legal_name(it.data) + "();")
+                    # gen_syntax(it.data, syntax.at(it.data))
+                end
+                case syntax_type.repeat
+                    println("while (true)")
+                    println("{")
+                    ++indent_count
+                    println("state = match_" + it.data + "();")
+                    println("if (state != parse_state::accept)")
+                    println("{")
+                    ++indent_count
+                    println("pop_stage();")
+                    println("break;")
+                    --indent_count
+                    println("} else")
+                    ++indent_count
+                    println("merge();")
+                    --indent_count
+                    --indent_count
+                    println("}")
+                end
+            end
+            println("if (state != parse_state::accept) return state;")
+        end
+        --indent_count
+        println("}")
+    end
     function run(stx)
-        var parser = new parsergen.parser_type
-        parser.init(stx)
-        
+        # parser = new parsergen.parser_type
+        # parser.init(stx)
+        syntax = stx
+        var supp_stx = new hash_map
+        foreach rule in syntax
+            var block_id = 0
+            foreach it in rule.second
+                ++block_id
+                switch it.type
+                    case syntax_type.repeat
+                        var name = get_legal_name(rule.first) + "_repeat_block_" + (block_id)
+                        supp_stx.insert(name, it.data)
+                        it.data = name
+                    end
+                    case syntax_type.opt
+                        var name = get_legal_name(rule.first) + "_option_block_" + (block_id)
+                        supp_stx.insert(name, it.data)
+                        it.data = name
+                    end
+                    case syntax_type.cond
+                        var cond_id = 0
+                        foreach seq in it.data
+                            var name = get_legal_name(rule.first) + "_cond_block_" + (block_id) + "_" + (++cond_id)
+                            supp_stx.insert(name, seq.data)
+                            seq.data = name
+                        end
+                    end
+                end
+            end
+        end
+        foreach it in supp_stx
+            syntax.insert(it.first, it.second)
+        end
+        println("#pragma once")
+        println("#include <parsergen.hpp>")
+        println("namespace parsergen")
+        println("{")
+        ++indent_count
+        println("class parser : public parsergen::parser_t")
+        println("{")
+        ++indent_count
+        foreach it in syntax
+            println("parse_state match_" + get_legal_name(it.first) + "();")
+        end
+        --indent_count
+        println("};")
+        foreach it in syntax
+            gen_syntax_impl(it.first, it.second)
+        end
+        println("}")
     end
 end
+
+var obj = new generator
+obj.ofs = iostream.ofstream("./a.cpp")
+obj.run(ecs_parser.grammar.stx)
