@@ -34,38 +34,141 @@ class generator
         foreach it in seq
             switch it.type
                 case syntax_type.token
+                    println("// Terminal Symbol <" + it.data + ">")
                     println("state = match_token(\"" + it.data + "\");")
+                    println("if (state != parse_state::accept) return state;")
                 end
                 case syntax_type.term
+                    println("// Terminal Symbol " + it.data)
                     println("state = match_term(\"" + it.data + "\");")
+                    println("if (state != parse_state::accept) return state;")
                 end
                 case syntax_type.ref
+                    println("// Non-terminal Symbol " + it.data)
                     println("state = match_" + get_legal_name(it.data) + "();")
-                    # gen_syntax(it.data, syntax.at(it.data))
+                    println("if (state != parse_state::accept) return state;")
+                end
+                case syntax_type.nlook
+                    println("// NLook Block")
+                    println("state = match_" + get_legal_name(it.data) + "();")
+                    println("switch (state) {")
+                    println("case parse_state::accept:")
+                    ++indent_count
+                    println("return parse_state::reject;")
+                    --indent_count
+                    println("case parse_state::eof:")
+                    ++indent_count
+                    println("return parse_state::eof;")
+                    --indent_count
+                    println("}")
                 end
                 case syntax_type.repeat
-                    println("while (true)")
-                    println("{")
+                    println("// Repeat Block")
+                    println("while (true) {")
                     ++indent_count
                     println("state = match_" + it.data + "();")
-                    println("if (state != parse_state::accept)")
-                    println("{")
+                    println("if (state != parse_state::accept) {")
                     ++indent_count
                     println("pop_stage();")
                     println("break;")
                     --indent_count
-                    println("} else")
+                    println("} else {")
                     ++indent_count
                     println("merge();")
                     --indent_count
+                    println("}")
+                    --indent_count
+                    println("}")
+                end
+                case syntax_type.opt
+                    println("// Option Block")
+                    println("state = match_" + it.data + "();")
+                    println("if (state != parse_state::accept) {")
+                    ++indent_count
+                    println("pop_stage();")
+                    --indent_count
+                    println("} else {")
+                    ++indent_count
+                    println("merge();")
+                    --indent_count
+                    println("}")
+                end
+                case syntax_type.cond
+                    println("// Condition Block")
+                    println("{")
+                    ++indent_count
+                    println("bool cond_matched = false;")
+                    foreach cond in it.data
+                        println("if (!cond_matched) {")
+                        ++indent_count
+                        println("state = match_" + cond.data + "();")
+                        println("switch (state) {")
+                        println("case parse_state::accept:")
+                        ++indent_count
+                        println("cond_matched = true;")
+                        println("merge();")
+                        println("break;")
+                        --indent_count
+                        println("case parse_state::reject:")
+                        ++indent_count
+                        println("pop_stage();")
+                        println("break;")
+                        --indent_count
+                        println("case parse_state::eof:")
+                        ++indent_count
+                        println("pop_stage();")
+                        println("return parse_state::eof;")
+                        --indent_count
+                        println("}")
+                        --indent_count
+                        println("}")
+                    end
                     --indent_count
                     println("}")
                 end
             end
-            println("if (state != parse_state::accept) return state;")
         end
+        println("return parse_state::accept;")
         --indent_count
         println("}")
+    end
+    function replace_block(supp_stx, block_id, rule_name, rule_seq)
+        foreach it in rule_seq
+            switch it.type
+                case syntax_type.nlook
+                    ++block_id
+                    ++block_id
+                    var name = get_legal_name(rule_name) + "_nlook_block_" + (block_id)
+                    replace_block(supp_stx, block_id, rule_name, it.data)
+                    supp_stx.insert(name, it.data)
+                    it.data = name
+                end
+                case syntax_type.repeat
+                    ++block_id
+                    var name = get_legal_name(rule_name) + "_repeat_block_" + (block_id)
+                    replace_block(supp_stx, block_id, rule_name, it.data)
+                    supp_stx.insert(name, it.data)
+                    it.data = name
+                end
+                case syntax_type.opt
+                    ++block_id
+                    var name = get_legal_name(rule_name) + "_option_block_" + (block_id)
+                    replace_block(supp_stx, block_id, rule_name, it.data)
+                    supp_stx.insert(name, it.data)
+                    it.data = name
+                end
+                case syntax_type.cond
+                    ++block_id
+                    var cond_id = 0
+                    foreach seq in it.data
+                        var name = get_legal_name(rule_name) + "_cond_block_" + (block_id) + "_" + (++cond_id)
+                        replace_block(supp_stx, block_id, rule_name, seq.data)
+                        supp_stx.insert(name, seq.data)
+                        seq.data = name
+                    end
+                end
+            end
+        end
     end
     function run(stx)
         # parser = new parsergen.parser_type
@@ -74,34 +177,13 @@ class generator
         var supp_stx = new hash_map
         foreach rule in syntax
             var block_id = 0
-            foreach it in rule.second
-                ++block_id
-                switch it.type
-                    case syntax_type.repeat
-                        var name = get_legal_name(rule.first) + "_repeat_block_" + (block_id)
-                        supp_stx.insert(name, it.data)
-                        it.data = name
-                    end
-                    case syntax_type.opt
-                        var name = get_legal_name(rule.first) + "_option_block_" + (block_id)
-                        supp_stx.insert(name, it.data)
-                        it.data = name
-                    end
-                    case syntax_type.cond
-                        var cond_id = 0
-                        foreach seq in it.data
-                            var name = get_legal_name(rule.first) + "_cond_block_" + (block_id) + "_" + (++cond_id)
-                            supp_stx.insert(name, seq.data)
-                            seq.data = name
-                        end
-                    end
-                end
-            end
+            replace_block(supp_stx, block_id, rule.first, rule.second)
         end
         foreach it in supp_stx
             syntax.insert(it.first, it.second)
         end
-        println("#pragma once")
+        println("// Generated by CovScript Parsergen")
+        println("// Date: " + to_string(runtime.local_time()))
         println("#include <parsergen.hpp>")
         println("namespace parsergen")
         println("{")
@@ -117,6 +199,7 @@ class generator
         foreach it in syntax
             gen_syntax_impl(it.first, it.second)
         end
+        --indent_count
         println("}")
     end
 end
