@@ -46,11 +46,21 @@ class generator
                 case syntax_type.ref
                     println("// Non-terminal Symbol " + it.data)
                     println("state = match_" + get_legal_name(it.data) + "();")
-                    println("if (state != parse_state::accept) return state;")
+                    println("if (state == parse_state::accept) {")
+                    ++indent_count
+                    println("accept();")
+                    --indent_count
+                    println("} else {")
+                    ++indent_count
+                    println("pop_stage();")
+                    println("return state;")
+                    --indent_count
+                    println("}")
                 end
                 case syntax_type.nlook
                     println("// NLook Block")
                     println("state = match_" + get_legal_name(it.data) + "();")
+                    println("pop_stage();")
                     println("switch (state) {")
                     println("case parse_state::accept:")
                     ++indent_count
@@ -123,6 +133,10 @@ class generator
                         --indent_count
                         println("}")
                     end
+                    println("if (!cond_matched)")
+                    ++indent_count
+                    println("return parse_state::reject;")
+                    --indent_count
                     --indent_count
                     println("}")
                 end
@@ -188,7 +202,11 @@ class generator
         println("namespace parsergen")
         println("{")
         ++indent_count
-        println("class parser : public parsergen::parser_t")
+        if syntax.exist("ignore")
+            println("class parser : public parsergen::parser_with_ign")
+        else
+            println("class parser : public parsergen::parser_type")
+        end
         println("{")
         ++indent_count
         foreach it in syntax
