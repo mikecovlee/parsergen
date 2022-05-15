@@ -1,16 +1,16 @@
 #pragma once
 #include <unordered_map>
+#include <unordered_set>
 #include <stdexcept>
 #include <vector>
 #include <stack>
 #include <string>
 #include <utility>
-
-#define parsergen_log(msg)
+#include <array>
 
 namespace parsergen {
 	struct token_type final {
-		std::size_t pos[2] = {0, 0};
+		std::array<std::size_t, 2> pos = {0, 0};
 		std::string type;
 		std::string data;
 	};
@@ -80,9 +80,28 @@ namespace parsergen {
 				throw std::out_of_range("parsergen::syntax_tree::is_child");
 			return node_idxs[idx].is_child;
 		}
+		inline std::size_t size() const
+		{
+			return node_idxs.size();
+		}
+		inline bool empty() const
+		{
+			return node_idxs.empty();
+		}
+		void merge(const syntax_tree& tree)
+		{
+			if (&tree != this) {
+				for (std::size_t i = 0; i < tree.size(); ++i) {
+					if (tree.is_child(i))
+						add_node(tree.get_tree(i));
+					else
+						add_node(tree.get_token(i));
+				}
+			}
+		}
 	};
 	enum class parse_state {
-		accept, reject, eof, null
+		accept, reject, eof
 	};
 	struct parse_stage final {
 		syntax_tree production;
@@ -91,9 +110,11 @@ namespace parsergen {
 		parse_stage(std::string tag, std::size_t cur) : production(std::move(tag)), cursor(cur) {}
 	};
 	struct parse_error final {
-		std::size_t pos[2] = {0, 0};
+		std::array<std::size_t, 2> pos = {0, 0};
 		std::size_t cursor = 0;
 		std::string text;
+		parse_error() = default;
+		parse_error(std::array<std::size_t, 2> p, std::size_t c, std::string txt) : cursor(c), text(std::move(txt)) {}
 	};
 	class parser_type {
 	protected:
@@ -103,58 +124,133 @@ namespace parsergen {
 		// Parsing
 		std::stack<parse_stage> parsing_stack;
 		std::vector<token_type> input;
-		size_t cursor_pos = 0;
 	public:
 		parser_type() = default;
 		virtual ~parser_type() = default;
 		virtual parse_state match_begin() = 0;
-		inline const token_type& peek() const
-		{
-			return input[cursor_pos + 1];
-		}
-		inline const token_type& get() const
-		{
-			return input[cursor_pos];
-		}
-		inline bool eof() const
-		{
-			return cursor_pos >= input.size() - 1;
-		}
 		void push_stage(const std::string& name)
 		{
-
+			std::size_t prev_cursor = 0;
+			if (!parsing_stack.empty())
+				prev_cursor = parsing_stack.top().cursor;
+			parsing_stack.emplace(name, prev_cursor);
 		}
 		void pop_stage()
 		{
-
+			parsing_stack.pop();
+		}
+		template<typename T>
+		void push(T&& val)
+		{
+			parsing_stack.top().production.add_node(std::forward<T>(val));
+		}
+		void push_token()
+		{
+			auto &top = parsing_stack.top();
+			top.production.add_node(input[top.cursor++]);
+		}
+		inline std::size_t cursor() const
+		{
+			return parsing_stack.top().cursor;
+		}
+		inline const token_type& peek() const
+		{
+			return input[cursor() + 1];
+		}
+		inline const token_type& get() const
+		{
+			return input[cursor()];
+		}
+		inline bool eof() const
+		{
+			return cursor() >= input.size() - 1;
+		}
+		void error(std::string msg, std::array<std::size_t, 2> pos)
+		{
+			std::size_t current = cursor();
+			if (current > max_cursor)
+				max_cursor = current;
+			error_log.emplace_back(pos, current, msg);
+		}
+		std::vector<parse_error> get_error_log(std::size_t n = 0)
+		{
+			std::unordered_set<std::string> set;
+			std::vector<parse_error> arr;
+			for (auto &it : error_log) {
+				if (it.cursor >= max_cursor - n && set.count(it.text) == 0) {
+					set.insert(it.text);
+					arr.emplace_back(it);
+				}
+			}
+			return move(arr);
 		}
 		void accept()
 		{
-
+			parse_stage prev_stage = std::move(parsing_stack.top());
+			parsing_stack.pop();
+			push(prev_stage.production);
+			parsing_stack.top().cursor = prev_stage.cursor;
 		}
 		void merge()
 		{
-
+			parse_stage prev_stage = std::move(parsing_stack.top());
+			parsing_stack.pop();
+			parsing_stack.top().production.merge(prev_stage.production);
+			parsing_stack.top().cursor = prev_stage.cursor;
 		}
-		virtual void ignore() {}
+		virtual parse_state ignore()
+		{
+			return eof() ? parse_state::eof : parse_state::accept;
+		}
 		inline parse_state match_token(const std::string& value)
 		{
-
+			if (eof()) {
+				error("Early EOF", input.back().pos);
+				return parse_state::eof;
+			}
+			if (peek().type != value && ignore() == parse_state::eof) {
+				error("Early EOF", input.back().pos);
+				return parse_state::eof;
+			}
+			if (peek().type == value) {
+				push_token();
+				return parse_state::accept;
+			}
+			else {
+				error("Unexpected Token", peek().pos);
+				return parse_state::reject;
+			}
 		}
 		inline parse_state match_term(const std::string& value)
 		{
-
+			if (eof()) {
+				error("Early EOF", input.back().pos);
+				return parse_state::eof;
+			}
+			if (peek().data != value && ignore() == parse_state::eof) {
+				error("Early EOF", input.back().pos);
+				return parse_state::eof;
+			}
+			if (peek().data == value) {
+				push_token();
+				return parse_state::accept;
+			}
+			else {
+				error("Unexpected Token", peek().pos);
+				return parse_state::reject;
+			}
 		}
 	};
 	class parser_with_ign : public parser_type {
 		bool on_ign = false;
 	public:
 		virtual parse_state match_ignore() = 0;
-		void ignore() override
+		parse_state ignore() override
 		{
 			if (!on_ign) {
 				on_ign = true;
-				if (match_ignore() == parse_state::accept) {
+				parse_state state = match_ignore();
+				if (state == parse_state::accept) {
 					std::size_t cursor = this->parsing_stack.top().cursor;
 					pop_stage();
 					this->parsing_stack.top().cursor = cursor;
@@ -162,7 +258,10 @@ namespace parsergen {
 				else
 					pop_stage();
 				on_ign = false;
+				return state;
 			}
+			else
+				return eof() ? parse_state::eof : parse_state::accept;
 		}
 	};
 }

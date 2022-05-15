@@ -30,7 +30,7 @@ class generator
         println("{")
         ++indent_count
         println("push_stage(\"" + name + "\");")
-        println("parse_state state = parse_state::null;")
+        println("parse_state state = parse_state::accept;")
         foreach it in seq
             switch it.type
                 case syntax_type.token
