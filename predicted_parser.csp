@@ -1,0 +1,81 @@
+# Covariant Script LL(1) Parser Generator v1.0.0
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+# Copyright (C) 2017-2022 Michael Lee(李登淳)
+#
+# Email:   lee@unicov.cn, mikecovlee@163.com
+# Github:  https://github.com/mikecovlee
+# Website: http://covscript.org.cn
+
+@require: 210503
+
+package predicted_parser
+
+import parsergen as gen
+
+namespace syntax_type
+    @begin
+        constant
+            token  = 1,
+            term   = 2,
+            ref    = 3
+    @end
+end
+
+struct syntax_impl
+    var data = null
+    var type = null
+end
+
+function make_syntax(type, data)
+    var s = new syntax_impl
+    s.type = type
+    s.data = data
+    return move(s)
+end
+
+struct production_rule
+    var parent_rule = null
+    var rules = new array
+end
+
+class parser_type
+    var bnf = null
+    var syn = null
+    var lex = null
+    function syn2bnf()
+        bnf = new hash_map
+        foreach it in syn
+            bnf.insert(it.first, new production_rule)
+            var arr = new array
+            var child_id = 0
+            foreach s in it.second
+                switch s.type
+                    case gen.syntax_type.token
+                        arr.push_back(make_syntax(syntax_type.token, s.data))
+                    end
+                    case gen.syntax_type.term
+                        arr.push_back(make_syntax(syntax_type.term, s.data))
+                    end
+                    case gen.syntax_type.ref
+                        arr.push_back(make_syntax(syntax_type.ref, s.data))
+                    end
+                    case gen.syntax_type.repeat
+
+                    end
+                end
+            end
+        end
+    end
+end
