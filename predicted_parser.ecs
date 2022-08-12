@@ -54,26 +54,22 @@ class parser_type
     var bnf = null
     var syn = null
     var lex = null
-    function syn2bnf()
-        bnf = new hash_map
-        foreach it in syn
-            bnf.insert(it.first, new production_rule)
-            var arr = new array
-            var child_id = 0
-            foreach s in it.second
-                switch s.type
-                    case gen.syntax_type.token
-                        arr.push_back(make_syntax(syntax_type.token, s.data))
-                    end
-                    case gen.syntax_type.term
-                        arr.push_back(make_syntax(syntax_type.term, s.data))
-                    end
-                    case gen.syntax_type.ref
-                        arr.push_back(make_syntax(syntax_type.ref, s.data))
-                    end
-                    case gen.syntax_type.repeat
+    function syn2bnf(seq)
+        var arr = new array
+        var child_id = 0
+        foreach s in seq
+            switch s.type
+                case gen.syntax_type.token
+                    arr.push_back(make_syntax(syntax_type.token, s.data))
+                end
+                case gen.syntax_type.term
+                    arr.push_back(make_syntax(syntax_type.term, s.data))
+                end
+                case gen.syntax_type.ref
+                    arr.push_back(make_syntax(syntax_type.ref, s.data))
+                end
+                case gen.syntax_type.repeat
 
-                    end
                 end
             end
         end
