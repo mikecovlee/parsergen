@@ -1,7 +1,20 @@
-@require: 210601
+@require: 210603
 @charset: utf8
 
 import codec.*
+
+struct test_class
+    function initialize()
+        system.out.println("Constructing test_class...")
+    end
+    function construct(...args)
+        system.out.print("Constructing test_class: ")
+        foreach it in args
+            system.out.print(to_string(it) + " ")
+        end
+        system.out.println("")
+    end
+end
 
 struct my_except
     var xxxx = null
@@ -10,10 +23,10 @@ struct my_except
     end
 end
 
-var a = 0, b = 2
+var a = 0, b = 2, c as test_class, d as test_class{"Hello", "world"}
 var func = [a, =b](=n:number)
 {
-    if n < 0
+    if not n >= 0 && my_except is type
         throw new my_except{"Hello"}
     end
     --n
@@ -22,18 +35,26 @@ var func = [a, =b](=n:number)
     return a + b
 }
 
+function call(f:function, args:array)
+    return f(args...)
+end
+
 var n = 10
 system.out.println("n = " + n)
 ([](n)->++n)(n)
 system.out.println("n = " + n)
-system.out.println("f = " + func(n))
+var r = call(func, {n})
+if r is number && r not string && r not namespace
+    system.out.println("f = " + r)
+end
 system.out.println("n = " + n)
 system.out.println("a = " + a)
 system.out.println("b = " + b)
+
 try
     func(system.in.input())
-catch e:my_except
-    system.out.println(e.xxxx)
-catch e
-    system.out.println(e.what)
+catch em:my_except
+    system.out.println(em.xxxx)
+catch er:exception
+    system.out.println(er.what)
 end
