@@ -1,5 +1,5 @@
 # Covariant Script Parser Generator v1.2.6 Release
-# Release Date: Sat Jan  7 20:35:57 2023
+# Release Date: Sat Jan  7 23:07:53 2023
 # Copyright (C) 2017-2022 Michael Lee(李登淳)
 # Github:  https://github.com/mikecovlee
 
@@ -792,11 +792,17 @@ class generator
     var lexer = null
     var parser = null
     var stop_on_error = true
+    var unicode_cvt = null
     var enable_log = false
     var file_path = "<FILE>"
     function priv_run(lang)
         if rules.exist(lang)
-            lexer = new lexer_type
+            if unicode_cvt != null
+                lexer = new unicode_lexer_type
+                lexer.cvt = unicode_cvt
+            else
+                lexer = new lexer_type
+            end
             if rules[lang].lex == null
                 print_header("Lexical rules not found! Stop")
                 return false
