@@ -3,7 +3,7 @@ import regex
 @begin
 var header =
 "# Release Date: " + to_string(runtime.local_time()) +
-"# Copyright (C) 2017-2022 Michael Lee(李登淳)\n" +
+"# Copyright (C) 2017-2023 Michael Lee(李登淳)\n" +
 "# Github:  https://github.com/mikecovlee\n"
 @end
 
