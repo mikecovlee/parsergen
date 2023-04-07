@@ -1,4 +1,4 @@
 {
-    "parsergen": "https://raw.githubusercontent.com/mikecovlee/parsergen/main/cspkg-repo/index_files/universal/parsergen.json",
-    "parsergen_debug": "https://raw.githubusercontent.com/mikecovlee/parsergen/main/cspkg-repo/index_files/universal/parsergen_debug.json"
+    "parsergen": "https://raw.githubusercontent.com/mikecovlee/parsergen/main/cspkg-repo/index_files/packages/universal/parsergen.json",
+    "parsergen_debug": "https://raw.githubusercontent.com/mikecovlee/parsergen/main/cspkg-repo/index_files/packages/universal/parsergen_debug.json"
 }
