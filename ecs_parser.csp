@@ -1,4 +1,4 @@
-# Covariant Script Parser Generator: Grammar of Extended CovScript(ECS Lang) v1.2.2
+# Covariant Script Parser Generator: Grammar of Extended CovScript(ECS Lang) v1.2.4
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -24,22 +24,24 @@ import parsergen, regex
 
 constant syntax = parsergen.syntax
 
-@begin
-var covscript_lexical = {
-    "endl" : regex.build("^\\n+$"),
-    "id" : regex.build("^[A-Za-z_]\\w*$"),
-    "num" : regex.build("^[0-9]+\\.?([0-9]+)?$"),
-    "str" : regex.build("^(\"|\"([^\"]|\\\\\")*\"?)$"),
-    "char" : regex.build("^(\'|\'([^\']|\\\\(0|\\\\|\'|\"|\\w))\'?)$"),
-    "bsig" : regex.build("^(;|::?|:=?|\\?|\\.\\.?|\\.\\.\\.)$"),
-    "msig" : regex.build("^(\\+(\\+|=)?|-(-|=|>)?|\\*=?|/=?|%=?|\\^=?)$"),
-    "lsig" : regex.build("^(>|<|&|(\\|)|&&|(\\|\\|)|!|==?|!=?|>=?|<=?)$"),
-    "brac" : regex.build("^(\\(|\\)|\\[|\\]|\\{|\\}|,)$"),
-    "prep" : regex.build("^@.*$"),
-    "ign" : regex.build("^([ \\f\\r\\t\\v]+|#.*)$"),
-    "err" : regex.build("^(\"|\'|(\\|)|:|\\.\\.)$")
-}.to_hash_map()
-@end
+function get_lexical(reg_builder)
+    @begin
+    return {
+        "endl" : reg_builder("^\\n+$"),
+        "id" :   reg_builder("^[A-Za-z_]\\w*$"),
+        "num" :  reg_builder("^[0-9]+\\.?([0-9]+)?$"),
+        "str" :  reg_builder("^(\"|\"([^\"]|\\\\\")*\"?)$"),
+        "char" : reg_builder("^(\'|\'([^\']|\\\\(0|\\\\|\'|\"|\\w))\'?)$"),
+        "bsig" : reg_builder("^(;|:=?|::|\\?|\\.\\.?|\\.\\.\\.)$"),
+        "msig" : reg_builder("^(\\+(\\+|=)?|-(-|=|>)?|\\*=?|/=?|%=?|\\^=?)$"),
+        "lsig" : reg_builder("^(>|<|&|(\\|)|&&|(\\|\\|)|!|==?|!=?|>=?|<=?)$"),
+        "brac" : reg_builder("^(\\(|\\)|\\[|\\]|\\{|\\}|,)$"),
+        "prep" : reg_builder("^@.*$"),
+        "ign" :  reg_builder("^([ \\f\\r\\t\\v]+|#.*)$"),
+        "err" :  reg_builder("^(\"|\'|(\\|)|\\.\\.)$")
+    }.to_hash_map()
+    @end
+end
 
 @begin
 var covscript_syntax = {
@@ -307,12 +309,12 @@ var covscript_syntax = {
         {syntax.token("str"), syntax.optional(syntax.ref("index"))},
         {syntax.term("local")},
         {syntax.term("global")},
-        {syntax.ref("csx_extend")},
+        {syntax.ref("ecsx_extend")},
         {syntax.ref("element")},
         {syntax.token("char")}
     )},
-    "csx_extend" : {
-        syntax.token("id"), syntax.term("::"), syntax.token("id"), syntax.term("("), syntax.optional(syntax.ref("cond-expr")), syntax.term(")")
+    "ecsx_extend" : {
+        syntax.token("id"), syntax.term("::"), syntax.token("id"), syntax.term("("), syntax.optional(syntax.ref("basic-expr")), syntax.term(")")
     },
     "element" : {
         syntax.cond_or({syntax.token("id")}, {syntax.term("("), syntax.ref("single-expr"), syntax.term(")")}),
@@ -330,13 +332,14 @@ var covscript_syntax = {
     "fcall" : {
         syntax.term("("), syntax.optional(syntax.ref("expr")), syntax.term(")")
     },
-    "index" : {
-        syntax.term("["), syntax.optional(syntax.ref("add-expr")), syntax.optional(syntax.term(":"), syntax.optional(syntax.ref("add-expr")), syntax.optional(syntax.term(":"), syntax.optional(syntax.ref("add-expr")))), syntax.term("]")
-    }
+    "index" : {syntax.cond_or(
+        {syntax.term("["), syntax.optional(syntax.ref("add-expr")), syntax.optional(syntax.term(":"), syntax.optional(syntax.ref("add-expr")), syntax.optional(syntax.term(":"), syntax.optional(syntax.ref("add-expr")))), syntax.term("]")},
+        {syntax.term("["), syntax.term("::"), syntax.term("]")}
+    )}
 }.to_hash_map()
 @end
 
 var grammar = new parsergen.grammar
-grammar.lex = covscript_lexical
+grammar.lex = get_lexical(regex.build)
 grammar.stx = covscript_syntax
-grammar.ext = ".*\\.(csp|csc|ecs)"
+grammar.ext = ".*\\.(csp|csc|ecs|ecsx)"
