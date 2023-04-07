@@ -1,17 +1,38 @@
-# Covariant Script Parser Generator v1.3.3 Release
-# Release Date: Fri Apr  7 16:18:28 2023
+# Covariant Script Parser Generator v1.3.3
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
 # Copyright (C) 2017-2023 Michael Lee(李登淳)
+#
+# Email:   lee@unicov.cn, mikecovlee@163.com
 # Github:  https://github.com/mikecovlee
+# Website: http://covscript.org.cn
 
 @require: 210503
-package parsergen
+
+package parsergen_debug
+
 import regex
 var unicode = context.import(runtime.get_import_path(), "unicode")
+
+# ParserGen Syntax
+
 struct syntax_impl
     var boot = null
     var type = null
     var data = null
 end
+
 namespace syntax_type
 @begin
     constant
@@ -25,12 +46,14 @@ namespace syntax_type
         cond_p = 8
 @end
 end
+
 function make_syntax(type, data)
     var s = new syntax_impl
     s.type = type
     s.data = data
     return move(s)
 end
+
 namespace syntax
     function token(data)
         return make_syntax(syntax_type.token, data)
@@ -41,31 +64,44 @@ namespace syntax
     function ref(name)
         return make_syntax(syntax_type.ref, name)
     end
+    # -(...), Negative Lookahead
     function nlook(...args)
         return make_syntax(syntax_type.nlook, args)
     end
+    # {...}
     function repeat(...args)
         return make_syntax(syntax_type.repeat, args)
     end
+    # [...]
     function optional(...args)
         return make_syntax(syntax_type.opt, args)
     end
+    # a | b | c... ==> {a}, {b}, {c}...
     function cond_or(...args)
         var data = new array
         foreach it in args do data.push_back(make_syntax(syntax_type.cond_p, it))
         return make_syntax(syntax_type.cond, data)
     end
 end
+
+# Grammar Class
+# ext: File Extension Filter described by Regular Expression
+# lex: Lexical Rules written in Regular Expression
+# stx: Syntax Rules written in ParserGen Syntax
 class grammar
     var ext = ".*"
     var lex = null
     var stx = null
 end
+
+# Lexer
+
 struct token_type
     var pos = {0, 0}
     var type = null
     var data = null
 end
+
 function make_token(pos, type, data)
     var t = new token_type
     t.pos = pos
@@ -76,10 +112,12 @@ function make_token(pos, type, data)
     t.data = data
     return move(t)
 end
+
 struct lex_error
     var text = new string
     var pos = {0, 0}
 end
+
 class lexer_type
     var lexical_set = new hash_set
     var error_log = new array
@@ -170,6 +208,7 @@ class lexer_type
         return output
     end
 end
+
 class unicode_lexer_type
     var lexical_set = new hash_set
     var error_log = new array
@@ -269,6 +308,9 @@ class unicode_lexer_type
         return output
     end
 end
+
+# Parser
+
 function print_header(txt)
     foreach i in range(txt.size) do system.out.print('#')
     system.out.println("")
@@ -276,19 +318,23 @@ function print_header(txt)
     foreach i in range(txt.size) do system.out.print('#')
     system.out.println("")
 end
+
 struct syntax_tree
     var root = new string
     var nodes = new array
 end
+
 struct parse_stage
     var product = new syntax_tree
     var cursor = 0
 end
+
 struct parse_error
     var cursor = 0
     var text = new string
     var pos = {0, 0}
 end
+
 namespace parse_state
 @begin
     constant
@@ -297,6 +343,7 @@ namespace parse_state
         eof    = 0
 @end
 end
+
 struct bootset_type
     var data_set = new hash_set
     var type_set = new hash_set
@@ -316,17 +363,30 @@ struct bootset_type
         pending_ref = hash_set.merge(pending_ref, set.pending_ref)
     end
 end
+
+# Adjustable Variables
+# Name                            | Type    | Function
+# parser_type.max_prediction_pass | Number  | Max pass of prediction, preventing endless loop when grammar have circle reference
+# parser_type.log                 | Boolean | Enable or disable parser logger
+
 class parser_type
+    # Error Reporting
     var error_log = null
     var max_cursor = 0
+    # Prediction
     var max_prediction_pass = 20
     var predict_cache = null
     var ign_bootset = null
+    # Parsing
     var on_ign = false
     var stack = null
     var syn = null
     var lex = null
+    # Logging
+    #%debug
+    var log_indent = 0
     var log = false
+    # Parsing Stage
     function push_stage(root)
         var prev_cursor = 0
         if !stack.empty()
@@ -340,6 +400,7 @@ class parser_type
     function pop_stage()
         return stack.pop_front()
     end
+    # Parsing Product
     function push(val)
         stack.front.product.nodes.push_back(val)
     end
@@ -347,6 +408,7 @@ class parser_type
         link top = stack.front
         top.product.nodes.push_back(lex[top.cursor++])
     end
+    # Token Streams
     function cursor()
         return stack.front.cursor
     end
@@ -359,6 +421,7 @@ class parser_type
     function get()
         return lex.at(stack.front.cursor++)
     end
+    # Error & Logs
     function error(str, pos)
         var err = new parse_error
         err.cursor = stack.front.cursor
@@ -369,6 +432,7 @@ class parser_type
         end
         error_log.push_back(move(err))
     end
+    # N: Error Level
     function get_log(n)
         var set = new hash_set
         var arr = new array
@@ -380,6 +444,23 @@ class parser_type
         end
         return move(arr)
     end
+    #~debug
+    # SS: Stack Size
+    # CP: Cursor Position
+    function parse_log(txt)
+        if log
+            @begin
+            system.out.print(
+                "SS = " + stack.size + "\t" +
+                "CP = " + stack.front.cursor + "\t"
+            )
+            @end
+            foreach i in range(log_indent) do system.out.print("  ")
+            system.out.println(txt)
+        end
+    end
+    #!debug
+    # Parsing Methods
     function accept()
         link prev_stage = pop_stage()
         push(prev_stage.product)
@@ -395,6 +476,8 @@ class parser_type
         foreach it in seq
             var result = this.match(it)
             if result != parse_state.accept
+                #%debug
+                parse_log("Incomplete Match")
                 if cursor() >= lex.size
                     error("Incomplete sentence", lex.back.pos)
                 else
@@ -409,16 +492,26 @@ class parser_type
         var cur = null
         if !on_ign && syn.exist("ignore")
             if ign_bootset != null && stack.front.cursor < lex.size && !ign_bootset.predict(lex.at(stack.front.cursor))
+                #%debug
+                parse_log("Predict Failed in IGNORE")
                 return null
             end
             on_ign = true
             push_stage("ignore")
+            #~debug
+            parse_log("Begin Ignore")
+            ++log_indent
+            #!debug
             if match_syntax(syn.ignore) == parse_state.accept
                 link prev_stage = pop_stage()
                 cur = prev_stage.cursor
             else
                 pop_stage()
             end
+            #~debug
+            --log_indent
+            parse_log("End Ignore")
+            #!debug
             on_ign = false
         end
         return move(cur)
@@ -429,6 +522,7 @@ class parser_type
             stack.front.cursor = cur
         end
     end
+    # Match Prediction
     function predict(set)
         if eof()
             return parse_state.eof
@@ -450,10 +544,18 @@ class parser_type
             return parse_state.accept
         end
     end
+    # Match:  Terminal Symbols
+    # Deduce: Nonterminal Symbols
+    # Accept: Matching Successfully
+    # Reject: Matching Failed, Rollback
     function match(it)
         switch it.type
             case syntax_type.token
+                #%debug
+                parse_log("Match  " + it.data)
                 if eof()
+                    #%debug
+                    parse_log("End Of File")
                     error("Early EOF, expected token <" + it.data + ">", lex.back.pos)
                     return parse_state.eof
                 end
@@ -461,18 +563,28 @@ class parser_type
                     ignore()
                 end
                 if eof()
+                    #%debug
+                    parse_log("End Of File")
                     return parse_state.eof
                 end
                 if peek().type == it.data
+                    #%debug
+                    parse_log("Accept " + it.data)
                     push_token()
                     return parse_state.accept
                 else
+                    #%debug
+                    parse_log("Reject " + it.data)
                     error("Unexpected token \'" + peek().data + "\', expected <" + it.data + ">", peek().pos)
                     return parse_state.reject
                 end
             end
             case syntax_type.term
+                #%debug
+                parse_log("Match  " + it.data)
                 if eof()
+                    #%debug
+                    parse_log("End Of File")
                     error("Early EOF, expected token \'" + it.data + "\'", lex.back.pos)
                     return parse_state.eof
                 end
@@ -480,12 +592,18 @@ class parser_type
                     ignore()
                 end
                 if eof()
+                    #%debug
+                    parse_log("End Of File")
                     return parse_state.eof
                 end
                 if peek().data == it.data
+                    #%debug
+                    parse_log("Accept " + it.data)
                     push_token()
                     return parse_state.accept
                 else
+                    #%debug
+                    parse_log("Reject " + it.data)
                     error("Unexpected token \'" + peek().data + "\', expected \'" + it.data + "\'", peek().pos)
                     return parse_state.reject
                 end
@@ -493,14 +611,26 @@ class parser_type
             case syntax_type.ref
                 var result = predict(predict_cache.at(it.data))
                 if result != parse_state.accept
+                    #%debug
+                    parse_log("Predict Failed in " + it.data)
                     return result
                 end
                 push_stage(it.data)
+                #~debug
+                parse_log("Deduce " + it.data)
+                ++log_indent
+                #!debug
                 result = match_syntax(syn.at(it.data))
+                #%debug
+                --log_indent
                 if result == parse_state.accept
+                    #%debug
+                    parse_log("Accept " + it.data)
                     accept()
                     return parse_state.accept
                 else
+                    #%debug
+                    parse_log("Reject " + it.data)
                     pop_stage()
                     return result
                 end
@@ -509,9 +639,13 @@ class parser_type
                 var result = predict(it.boot)
                 switch result
                     case parse_state.reject
+                        #%debug
+                        parse_log("Predict Failed in NLOOK")
                         return parse_state.accept
                     end
                     case parse_state.eof
+                        #%debug
+                        parse_log("Predict Reaches EOF in NLOOK")
                         return parse_state.eof
                     end
                 end
@@ -535,9 +669,13 @@ class parser_type
                     var result = predict(it.boot)
                     switch result
                         case parse_state.reject
+                            #%debug
+                            parse_log("Predict Failed in REPEAT")
                             return parse_state.accept
                         end
                         case parse_state.eof
+                            #%debug
+                            parse_log("Predict Reaches EOF in REPEAT")
                             return parse_state.accept
                         end
                     end
@@ -562,9 +700,13 @@ class parser_type
                 var result = predict(it.boot)
                 switch result
                     case parse_state.reject
+                        #%debug
+                        parse_log("Predict Failed in OPTIONAL")
                         return parse_state.accept
                     end
                     case parse_state.eof
+                        #%debug
+                        parse_log("Predict Reaches EOF in OPTIONAL")
                         return parse_state.accept
                     end
                 end
@@ -591,9 +733,13 @@ class parser_type
                     var result = predict(seq.boot)
                     switch result
                         case parse_state.reject
+                            #%debug
+                            parse_log("Predict Failed in CONDITION")
                             continue
                         end
                         case parse_state.eof
+                            #%debug
+                            parse_log("Predict Reaches EOF in CONDITION")
                             return parse_state.eof
                         end
                     end
@@ -618,6 +764,7 @@ class parser_type
         end
         return parse_state.reject
     end
+    # Preparation(Generating boot set of parsing stages)
     function prep_syntax(seq)
         var set = new bootset_type
         var scanning = false
@@ -649,6 +796,7 @@ class parser_type
                         end
                     end
                 end
+                # syntax_type.repeat and syntax_type.opt
                 default
                     if it.boot == null
                         var ret = prep_syntax(it.data)
@@ -680,6 +828,19 @@ class parser_type
         end
         return move(set)
     end
+    #~debug
+    function show_boot(boot)
+        if log
+            @begin
+            system.out.println(
+                "\tDset: " + boot.data_set +
+                "\tTset: " + boot.type_set +
+                "\tPset: " + boot.pending_ref
+            )
+            @end
+        end
+    end
+    #!debug
     function expand_pending_ref(boot)
         var unsolved_ref = false
         if boot != null && !boot.pending_ref.empty()
@@ -701,6 +862,11 @@ class parser_type
             boot.merge(pending_set)
             boot.pending_ref = hash_set.subtract(boot.pending_ref, solved_ref)
         end
+        #~debug
+        if boot != null
+            show_boot(boot)          
+        end
+        #!debug
         return !unsolved_ref
     end
     function solve_pending_ref()
@@ -709,6 +875,11 @@ class parser_type
             ++pass
             var unsolved_ref = false
             foreach rule in syn
+                #~debug
+                if log
+                    system.out.println("Pass " + pass + " of rule \"" + rule.first + "\":")
+                end
+                #!debug
                 if !expand_pending_ref(predict_cache.at(rule.first))
                     unsolved_ref = true
                 end
@@ -722,8 +893,18 @@ class parser_type
         if pass > max_prediction_pass
             throw runtime.exception("Reaches max pass of prediction.")
         end
+        #~debug
+        if log
+            print_header("Prediction finished in pass " + pass)
+        end
+        #!debug
     end
     function init(grammar)
+        #~debug
+        if log
+            print_header("Generating Prediction Cache...")
+        end
+        #!debug
         predict_cache = new hash_map
         syn = grammar
         foreach it in syn
@@ -735,9 +916,16 @@ class parser_type
         solve_pending_ref()
     end
     function parse(lex_output)
+        #~debug
+        if log
+            print_header("Launching Parse Procedure...")
+        end
+        #!debug
         error_log = new array
         stack = new array
         max_cursor = 0
+        #%debug
+        log_indent = 0
         on_ign = false
         lex = lex_output
         push_stage("begin")
@@ -755,6 +943,9 @@ class parser_type
         end
     end
 end
+
+# Wrapped Methods
+
 function print_error(file, code, err)
     foreach it in err
         system.out.print("File \"" + file + "\", line " + (it.pos[1] + 1) + ": ")
@@ -765,6 +956,7 @@ function print_error(file, code, err)
         system.out.println("\n")
     end
 end
+
 function print_ast_impl(indent, tree)
     if tree == null
         return
@@ -781,9 +973,11 @@ function print_ast_impl(indent, tree)
         end
     end
 end
+
 function print_ast(tree)
     print_ast_impl(0, tree)
 end
+
 function read_stream(ifs, data)
     var line = new string
     var expect_n = false
@@ -814,18 +1008,27 @@ function read_stream(ifs, data)
         data.push_back(line)
     end
 end
+
 class generator
+    # Grammars
     var rules = new hash_map
+    # String Input
     var input = new string
+    # Line Separated Input(for Error Reporting)
     var code_buff = new array
+    # Lexer Output
     var token_buff = null
+    # Parser Output
     var ast = null
+    # Workers
     var lexer = null
     var parser = null
+    # Options
     var stop_on_error = true
     var unicode_cvt = null
     var show_prompt = true
     var enable_log = false
+    # Private Methods
     var file_path = "<FILE>"
     function priv_run(lang)
         if rules.exist(lang)
@@ -835,6 +1038,11 @@ class generator
             else
                 lexer = new lexer_type
             end
+            #~debug
+            if enable_log
+                print_header("Begin Lexical Analysis...")
+            end
+            #!debug
             if rules[lang].lex == null
                 if show_prompt
                     print_header("Lexical rules not found! Stop")
@@ -857,6 +1065,20 @@ class generator
             end
             parser = new parser_type
             parser.log = enable_log
+            #~debug
+            if enable_log
+                print_header("Lexer Output")
+                var max_align = to_string(token_buff.size).size
+                foreach i in range(token_buff.size)
+                    link it = token_buff[i]
+                    var align = max_align - to_string(i).size
+                    system.out.print("CP = " + i)
+                    foreach x in range(align) do system.out.print(' ')
+                    system.out.println("  Type = " + it.type + "\tData = " + it.data + "\tPos = (" + it.pos[0] + ", " + it.pos[1] + ")")
+                end
+                print_header("Begin Syntactic Analysis...")
+            end
+            #!debug
             if rules[lang].stx == null
                 if show_prompt
                     print_header("Syntactic rules not found! Stop")
@@ -879,6 +1101,7 @@ class generator
             return false
         end
     end
+    # Public Methods
     function add_grammar(lang, gram)
         rules[lang] = gram
     end
