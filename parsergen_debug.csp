@@ -1,4 +1,4 @@
-# Covariant Script Parser Generator v1.3.2
+# Covariant Script Parser Generator v1.3.3
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -556,7 +556,7 @@ class parser_type
                 if eof()
                     #%debug
                     parse_log("End Of File")
-                    error("Early EOF, expected token \'" + it.data + "\'", lex.back.pos)
+                    error("Early EOF, expected token <" + it.data + ">", lex.back.pos)
                     return parse_state.eof
                 end
                 if peek().type != it.data

@@ -1,5 +1,5 @@
-# Covariant Script Parser Generator v1.3.2 Release
-# Release Date: Fri Apr  7 15:50:26 2023
+# Covariant Script Parser Generator v1.3.3 Release
+# Release Date: Fri Apr  7 16:08:51 2023
 # Copyright (C) 2017-2023 Michael Lee(李登淳)
 # Github:  https://github.com/mikecovlee
 
@@ -454,7 +454,7 @@ class parser_type
         switch it.type
             case syntax_type.token
                 if eof()
-                    error("Early EOF, expected token \'" + it.data + "\'", lex.back.pos)
+                    error("Early EOF, expected token <" + it.data + ">", lex.back.pos)
                     return parse_state.eof
                 end
                 if peek().type != it.data
