@@ -7,5 +7,5 @@
 	"Info" : "Parser Generator (Debug Version) written in Covariant Script",
 	"Name" : "parsergen_debug",
 	"Target" : "https://raw.githubusercontent.com/mikecovlee/parsergen/main/cspkg-repo/universal/parsergen_debug.csp",
-	"Version" : "1.3.3"
+	"Version" : "1.3.4"
 }

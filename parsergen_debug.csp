@@ -1,4 +1,4 @@
-# Covariant Script Parser Generator v1.3.3
+# Covariant Script Parser Generator v1.3.4
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -227,7 +227,7 @@ class unicode_lexer_type
     end
     function cursor_forward()
         ++pos[2]
-        if pos[2] != data.size()
+        if pos[2] != data.size
             if data.at(pos[2]) == unicode.wchar.from_char('\n')
                 ++pos[1]
                 pos[0] = 0
@@ -268,7 +268,7 @@ class unicode_lexer_type
     end
     function run(lexical, text)
         data = cvt.local2wide(text)
-        while pos[2] != data.size()
+        while pos[2] != data.size
             var ch = data.at(pos[2])
             if lexical_set.empty()
                 var nbuff = ch.to_wstring()
