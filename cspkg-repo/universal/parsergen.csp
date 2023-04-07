@@ -1,5 +1,5 @@
-# Covariant Script Parser Generator v1.3.4 Release
-# Release Date: Fri Apr  7 18:15:24 2023
+# Covariant Script Parser Generator v1.3.5 Release
+# Release Date: Fri Apr  7 18:17:58 2023
 # Copyright (C) 2017-2023 Michael Lee(李登淳)
 # Github:  https://github.com/mikecovlee
 
@@ -915,5 +915,10 @@ class generator
             end
         end
         return false
+    end
+    function get_errors()
+        var err = {(lexer.error_log)..., (parser.get_log(0))...}
+        err.sort([](lhs, rhs)->lhs.pos[1] < rhs.pos[1])
+        return move(err)
     end
 end
