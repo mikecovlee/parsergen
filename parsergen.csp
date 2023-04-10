@@ -1,5 +1,5 @@
-# Covariant Script Parser Generator v1.3.5 Release
-# Release Date: Fri Apr  7 18:17:58 2023
+# Covariant Script Parser Generator v1.3.6 Release
+# Release Date: Mon Apr 10 10:34:01 2023
 # Copyright (C) 2017-2023 Michael Lee(李登淳)
 # Github:  https://github.com/mikecovlee
 
@@ -835,13 +835,14 @@ class generator
             else
                 lexer = new lexer_type
             end
-            if rules[lang].lex == null
+            link grammar = rules[lang]
+            if grammar.lex == null
                 if show_prompt
                     print_header("Lexical rules not found! Stop")
                 end
                 return false
             end
-            token_buff = lexer.run(rules[lang].lex, input)
+            token_buff = lexer.run(grammar.lex, input)
             if !lexer.error_log.empty()
                 if show_prompt
                     if stop_on_error
@@ -857,13 +858,13 @@ class generator
             end
             parser = new parser_type
             parser.log = enable_log
-            if rules[lang].stx == null
+            if grammar.stx == null
                 if show_prompt
                     print_header("Syntactic rules not found! Stop")
                 end
                 return false
             end
-            if parser.run(rules[lang].stx, token_buff)
+            if parser.run(grammar.stx, token_buff)
                 ast = parser.production()
                 return true
             else
@@ -880,7 +881,7 @@ class generator
         end
     end
     function add_grammar(lang, gram)
-        rules[lang] = gram
+        rules[lang] := gram
     end
     function from_stream(lang, input_stream)
         input = new string
