@@ -1,4 +1,4 @@
-# Covariant Script Parser Generator v1.3.6
+# Covariant Script Parser Generator v1.3.7
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -36,6 +36,7 @@ end
 namespace syntax_type
 @begin
     constant
+        hint   = 0,
         token  = 1,
         term   = 2,
         ref    = 3,
@@ -55,6 +56,9 @@ function make_syntax(type, data)
 end
 
 namespace syntax
+    function hint(func)
+        return make_syntax(syntax_type.hint, func)
+    end
     function token(data)
         return make_syntax(syntax_type.token, data)
     end
@@ -550,6 +554,14 @@ class parser_type
     # Reject: Matching Failed, Rollback
     function match(it)
         switch it.type
+            case syntax_type.hint
+                if eof()
+                    error(it.data(lex.back), lex.back.pos)
+                else
+                    error(it.data(peek()), peek().pos)
+                end
+                return parse_state.accept
+            end
             case syntax_type.token
                 #%debug
                 parse_log("Match  " + it.data)
@@ -770,6 +782,9 @@ class parser_type
         var scanning = false
         foreach it in seq
             switch it.type
+                case syntax_type.hint
+                    continue
+                end
                 case syntax_type.term
                     if !scanning
                         set.data_set.insert(it.data)
@@ -1092,9 +1107,7 @@ class generator
             else
                 if show_prompt
                     print_header("Compilation Error")
-                    var err = {(lexer.error_log)..., (parser.get_log(0))...}
-                    err.sort([](lhs, rhs)->lhs.pos[1] < rhs.pos[1])
-                    print_error(file_path, code_buff, err)
+                    print_error(file_path, code_buff, this.get_errors())
                 end
                 return false
             end
@@ -1142,7 +1155,7 @@ class generator
     end
     function get_errors()
         var err = {(lexer.error_log)..., (parser.get_log(0))...}
-        err.sort([](lhs, rhs)->lhs.pos[1] < rhs.pos[1])
+        err.sort([](lhs, rhs)->lhs.pos[1] < rhs.pos[1] || lhs.text < rhs.text)
         return move(err)
     end
 end

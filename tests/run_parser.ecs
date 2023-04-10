@@ -73,7 +73,7 @@ var cminus_syntax = {
         {syntax.ref("param_list")}
     )},
     "param_list" : {
-        syntax.ref("param"), syntax.repeat(syntax.term(","), syntax.ref("param"))
+        syntax.ref("param"), syntax.hint([](token)->"May you mean ','"), syntax.repeat(syntax.term(","), syntax.ref("param"))
     },
     "param" : {
         syntax.ref("type_specifier"), syntax.token("id"), syntax.optional(syntax.term("["), syntax.term("]"))
@@ -154,7 +154,7 @@ var cminus_syntax = {
         {syntax.term("("), syntax.optional(syntax.ref("args")), syntax.term(")")}
     )},
     "args" : {
-        syntax.ref("expression"), syntax.repeat(syntax.term(","), syntax.ref("expression"))
+        syntax.ref("expression"), syntax.hint([](token)->"May you mean ','"), syntax.repeat(syntax.term(","), syntax.ref("expression"))
     } 
 }.to_hash_map()
 

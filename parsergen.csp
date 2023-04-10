@@ -1,5 +1,5 @@
-# Covariant Script Parser Generator v1.3.6 Release
-# Release Date: Mon Apr 10 10:34:01 2023
+# Covariant Script Parser Generator v1.3.7 Release
+# Release Date: Mon Apr 10 12:59:27 2023
 # Copyright (C) 2017-2023 Michael Lee(李登淳)
 # Github:  https://github.com/mikecovlee
 
@@ -15,6 +15,7 @@ end
 namespace syntax_type
 @begin
     constant
+        hint   = 0,
         token  = 1,
         term   = 2,
         ref    = 3,
@@ -32,6 +33,9 @@ function make_syntax(type, data)
     return move(s)
 end
 namespace syntax
+    function hint(func)
+        return make_syntax(syntax_type.hint, func)
+    end
     function token(data)
         return make_syntax(syntax_type.token, data)
     end
@@ -452,6 +456,14 @@ class parser_type
     end
     function match(it)
         switch it.type
+            case syntax_type.hint
+                if eof()
+                    error(it.data(lex.back), lex.back.pos)
+                else
+                    error(it.data(peek()), peek().pos)
+                end
+                return parse_state.accept
+            end
             case syntax_type.token
                 if eof()
                     error("Early EOF, expected token <" + it.data + ">", lex.back.pos)
@@ -623,6 +635,9 @@ class parser_type
         var scanning = false
         foreach it in seq
             switch it.type
+                case syntax_type.hint
+                    continue
+                end
                 case syntax_type.term
                     if !scanning
                         set.data_set.insert(it.data)
@@ -870,9 +885,7 @@ class generator
             else
                 if show_prompt
                     print_header("Compilation Error")
-                    var err = {(lexer.error_log)..., (parser.get_log(0))...}
-                    err.sort([](lhs, rhs)->lhs.pos[1] < rhs.pos[1])
-                    print_error(file_path, code_buff, err)
+                    print_error(file_path, code_buff, this.get_errors())
                 end
                 return false
             end
@@ -919,7 +932,7 @@ class generator
     end
     function get_errors()
         var err = {(lexer.error_log)..., (parser.get_log(0))...}
-        err.sort([](lhs, rhs)->lhs.pos[1] < rhs.pos[1])
+        err.sort([](lhs, rhs)->lhs.pos[1] < rhs.pos[1] || lhs.text < rhs.text)
         return move(err)
     end
 end
