@@ -960,6 +960,7 @@ class partial_parser_type extends parser_type
                     on_eof_hook(this)
                     # Fallback to the beginning of matching
                     this.stack.front.cursor = begin_cur
+                    this.stack.front.product.nodes = new array
                     it = seq.begin
                     if this.eof()
                         this.error("Incomplete sentence", this.lex.back.pos)
