@@ -1,4 +1,4 @@
-# Covariant Script Parser Generator v1.3.7
+# Covariant Script Parser Generator v1.3.8
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -36,7 +36,6 @@ end
 namespace syntax_type
 @begin
     constant
-        hook   = 0,
         token  = 1,
         term   = 2,
         ref    = 3,
@@ -56,9 +55,6 @@ function make_syntax(type, data)
 end
 
 namespace syntax
-    function hook(func)
-        return make_syntax(syntax_type.hook, func)
-    end
     function token(data)
         return make_syntax(syntax_type.token, data)
     end
@@ -554,11 +550,6 @@ class parser_type
     # Reject: Matching Failed, Rollback
     function match(it)
         switch it.type
-            case syntax_type.hook
-                #%debug
-                parse_log("Injecting Hook")
-                return it.data(this)
-            end
             case syntax_type.token
                 #%debug
                 parse_log("Match  " + it.data)
@@ -779,9 +770,6 @@ class parser_type
         var scanning = false
         foreach it in seq
             switch it.type
-                case syntax_type.hook
-                    continue
-                end
                 case syntax_type.term
                     if !scanning
                         set.data_set.insert(it.data)
@@ -956,11 +944,10 @@ class parser_type
     end
 end
 
-class repl_parser_type extends parser_type
+class partial_parser_type extends parser_type
     var on_eof_hook = null
-    var accept_hook = null
     function match_syntax(seq) override
-        var prev_hook = null
+        var begin_cur = this.stack.front.cursor
         var it = seq.begin
         while it != seq.end
             var result = this.match(it.data)
@@ -968,24 +955,23 @@ class repl_parser_type extends parser_type
                 #%debug
                 this.parse_log("Incomplete Match")
                 if this.eof()
-                    if on_eof_hook != null
-                        #%debug
-                        this.parse_log("Injecting On-EOF Hook")
-                        on_eof_hook(this)
+                    #%debug
+                    this.parse_log("Injecting On-EOF Hook")
+                    on_eof_hook(this)
+                    # Fallback to the beginning of matching
+                    this.stack.front.cursor = begin_cur
+                    it = seq.begin
+                    if this.eof()
+                        this.error("Incomplete sentence", this.lex.back.pos)
+                    else
                         continue
                     end
-                    this.error("Incomplete sentence", this.lex.back.pos)
                 else
                     this.error("Incomplete sentence", this.peek().pos)
                 end
                 return result
             end
             it.next()
-        end
-        if accept_hook != null
-            #%debug
-            this.parse_log("Injecting ACCEPT Hook")
-            accept_hook(this)
         end
         return parse_state.accept
     end

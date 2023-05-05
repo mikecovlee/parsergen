@@ -1,5 +1,5 @@
-# Covariant Script Parser Generator v1.3.7 Release
-# Release Date: Thu Apr 27 13:26:51 2023
+# Covariant Script Parser Generator v1.3.8 Release
+# Release Date: Fri May  5 16:39:45 2023
 # Copyright (C) 2017-2023 Michael Lee(李登淳)
 # Github:  https://github.com/mikecovlee
 
@@ -15,7 +15,6 @@ end
 namespace syntax_type
 @begin
     constant
-        hook   = 0,
         token  = 1,
         term   = 2,
         ref    = 3,
@@ -33,9 +32,6 @@ function make_syntax(type, data)
     return move(s)
 end
 namespace syntax
-    function hook(func)
-        return make_syntax(syntax_type.hook, func)
-    end
     function token(data)
         return make_syntax(syntax_type.token, data)
     end
@@ -456,9 +452,6 @@ class parser_type
     end
     function match(it)
         switch it.type
-            case syntax_type.hook
-                return it.data(this)
-            end
             case syntax_type.token
                 if eof()
                     error("Early EOF, expected token <" + it.data + ">", lex.back.pos)
@@ -630,9 +623,6 @@ class parser_type
         var scanning = false
         foreach it in seq
             switch it.type
-                case syntax_type.hook
-                    continue
-                end
                 case syntax_type.term
                     if !scanning
                         set.data_set.insert(it.data)
@@ -765,30 +755,29 @@ class parser_type
         end
     end
 end
-class repl_parser_type extends parser_type
+class partial_parser_type extends parser_type
     var on_eof_hook = null
-    var accept_hook = null
     function match_syntax(seq) override
-        var prev_hook = null
+        var begin_cur = this.stack.front.cursor
         var it = seq.begin
         while it != seq.end
             var result = this.match(it.data)
             if result != parse_state.accept
                 if this.eof()
-                    if on_eof_hook != null
-                        on_eof_hook(this)
+                    on_eof_hook(this)
+                    this.stack.front.cursor = begin_cur
+                    it = seq.begin
+                    if this.eof()
+                        this.error("Incomplete sentence", this.lex.back.pos)
+                    else
                         continue
                     end
-                    this.error("Incomplete sentence", this.lex.back.pos)
                 else
                     this.error("Incomplete sentence", this.peek().pos)
                 end
                 return result
             end
             it.next()
-        end
-        if accept_hook != null
-            accept_hook(this)
         end
         return parse_state.accept
     end

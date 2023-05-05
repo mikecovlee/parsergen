@@ -16,32 +16,9 @@ function compress_ast(n)
 end
 
 class repl
-    var syntax_stages = {"ignore", "nlook", "repeat", "optional", "cond_or"}=>hash_set
-    var parser = new parsergen.repl_parser_type
+    var parser = new parsergen.partial_parser_type
     var code_buff = new array
-    var stages = new array
     var log = false
-    function find_first_stage(parser)
-        foreach it in parser.stack
-            link name = it.product.root
-            if !syntax_stages.exist(name)
-                return name
-            end
-        end
-    end
-    function repl_hook(parser)
-        if !parser.eof()
-            return parsergen.parse_state.accept
-        end
-        if stages.size > 0
-            var tokens = null
-            loop
-                tokens = this.readline()
-            until tokens != null
-            foreach it in tokens do parser.lex.push_back(it)
-        end
-        return parsergen.parse_state.accept
-    end
     function on_eof_hook(parser)
         if log
             system.out.println("Parsing stages:")
@@ -50,28 +27,18 @@ class repl
             end
             system.out.println("")
         end
-        stages.push_front(find_first_stage(parser))
         var tokens = null
         loop
-            tokens = this.readline()
+            tokens = this.readline("..> ")
         until tokens != null
         foreach it in tokens do parser.lex.push_back(it)
         return true
     end
-    function accept_hook(parser)
-        if !stages.empty() && find_first_stage(parser) == stages.front
-            stages.pop_front()
-        end
-    end
     function initialize()
-        ecs_parser.grammar.stx.stmts = ecs_parser.grammar.stx.stmts_repl
-        ecs_parser.repl_hook = repl_hook
         parser.on_eof_hook = on_eof_hook
-        parser.accept_hook = accept_hook
     end
-    function readline()
-        foreach i in range(stages.size + 1) do system.out.print(">")
-        system.out.print(" ")
+    function readline(prompt)
+        system.out.print(prompt)
         var line = system.in.getline() + "\n"
         if line == "@exit\n"
             system.exit(0)
@@ -90,7 +57,7 @@ class repl
         loop
             var tokens = null
             loop
-                tokens = this.readline()
+                tokens = this.readline("> ")
             until tokens != null
             if parser.run(ecs_parser.grammar.stx, tokens)
                 var ast = parser.production()
