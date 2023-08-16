@@ -1,4 +1,4 @@
-# Covariant Script Parser Generator v1.3.8
+# Covariant Script Parser Generator v1.3.9
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -345,6 +345,7 @@ namespace parse_state
 end
 
 struct bootset_type
+    var epsilon = false
     var data_set = new hash_set
     var type_set = new hash_set
     var pending_ref = new hash_set
@@ -358,6 +359,7 @@ struct bootset_type
         return data_set.empty() && type_set.empty()
     end
     function merge(set)
+        epsilon = epsilon or set.epsilon
         data_set = hash_set.merge(data_set, set.data_set)
         type_set = hash_set.merge(type_set, set.type_set)
         pending_ref = hash_set.merge(pending_ref, set.pending_ref)
@@ -539,7 +541,11 @@ class parser_type
                     return parse_state.accept
                 end
             end
-            return parse_state.reject
+            if set.epsilon
+                return parse_state.accept
+            else
+                return parse_state.reject
+            end
         else
             return parse_state.accept
         end
@@ -767,22 +773,26 @@ class parser_type
     # Preparation(Generating boot set of parsing stages)
     function prep_syntax(seq)
         var set = new bootset_type
+        var insert_epsilon = true
         var scanning = false
         foreach it in seq
             switch it.type
                 case syntax_type.term
+                    insert_epsilon = false
                     if !scanning
                         set.data_set.insert(it.data)
                         scanning = true
                     end
                 end
                 case syntax_type.token
+                    insert_epsilon = false
                     if !scanning
                         set.type_set.insert(it.data)
                         scanning = true
                     end
                 end
                 case syntax_type.ref
+                    insert_epsilon = false
                     if !scanning
                         set.pending_ref.insert(it.data)
                         scanning = true
@@ -809,6 +819,7 @@ class parser_type
                     end
                 end
                 case syntax_type.cond
+                    insert_epsilon = false
                     var scanned = scanning
                     foreach cond_p in it.data
                         if cond_p.boot == null
@@ -826,6 +837,9 @@ class parser_type
                 end
             end
         end
+        if insert_epsilon
+            set.epsilon = true
+        end
         return move(set)
     end
     #~debug
@@ -833,9 +847,10 @@ class parser_type
         if log
             @begin
             system.out.println(
-                "\tDset: " + boot.data_set +
-                "\tTset: " + boot.type_set +
-                "\tPset: " + boot.pending_ref
+                "\tEpsilon: " + boot.epsilon +
+                "\tDataSet: " + boot.data_set +
+                "\tTypeSet: " + boot.type_set +
+                "\tPrefSet: " + boot.pending_ref
             )
             @end
         end
