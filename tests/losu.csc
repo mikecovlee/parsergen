@@ -20,7 +20,7 @@ losu_grammar.lex = {
     "num" : unicode.build_wregex(cvt.local2wide("^[0-9]+\\.?([0-9]+)?$")),
     "str" : unicode.build_wregex(cvt.local2wide("^(\"|\"([^\"]|\\\\\")*\"?)$")),
     "sig" : unicode.build_wregex(cvt.local2wide("^(#|\\+|/|-|\\*|<|<=|>|>=|=|!=?|==|&|;|,|\\(|\\)|\\[|\\]|\\{|\\})$")),
-    "ign" : unicode.build_wregex(cvt.local2wide("^([ \\f\\r\\t\\v]+|/|//.*\\n?|/\\*([^\\*]|\\*(?!/))*(\\*/)?)$")),
+    "ign" : unicode.build_wregex(cvt.local2wide("^([ \\f\\r\\t]+|/|//.*\\n?|/\\*([^\\*]|\\*(?!/))*(\\*/)?)$")),
     "err" : unicode.build_wregex(cvt.local2wide("^(!)$"))
 }.to_hash_map()
 @end
@@ -49,24 +49,24 @@ losu_grammar.stx = {
         {syntax.token("id")}
     )},
     "load-stmt" : {
-        syntax.term("¼ÓÔØ"), syntax.ref("identifier")
+        syntax.term("ï¿½ï¿½ï¿½ï¿½"), syntax.ref("identifier")
     },
     "import-stmt" : {
-        syntax.term("µ¼Èë"), syntax.ref("identifier"), syntax.repeat(syntax.term("/"), syntax.ref("identifier"))
+        syntax.term("ï¿½ï¿½ï¿½ï¿½"), syntax.ref("identifier"), syntax.repeat(syntax.term("/"), syntax.ref("identifier"))
     },
     "method-list" : {
         syntax.ref("identifier"), syntax.optional(syntax.term(","), syntax.ref("method-list"))
     },
     "method-stmt" : {
-        syntax.term("·½·¨"), syntax.ref("identifier"), syntax.optional(syntax.term("("), syntax.optional(syntax.ref("method-list")), syntax.term(")")),
+        syntax.term("ï¿½ï¿½ï¿½ï¿½"), syntax.ref("identifier"), syntax.optional(syntax.term("("), syntax.optional(syntax.ref("method-list")), syntax.term(")")),
         syntax.token("endl"), syntax.repeat(syntax.ref("inst-stmt"), syntax.token("endl")), syntax.term(";")
     },
     "if-stmt" : {
-        syntax.term("#"), syntax.term("Èç¹û"), syntax.ref("expr"),
+        syntax.term("#"), syntax.term("ï¿½ï¿½ï¿½"), syntax.ref("expr"),
         syntax.token("endl"), syntax.repeat(syntax.ref("inst-stmt"), syntax.token("endl")), syntax.term(";")
     },
     "loop-stmt" : {
-        syntax.term("#"), syntax.term("Ñ­»·"), syntax.ref("expr"),
+        syntax.term("#"), syntax.term("Ñ­ï¿½ï¿½"), syntax.ref("expr"),
         syntax.token("endl"), syntax.repeat(syntax.ref("inst-stmt"), syntax.token("endl")), syntax.term(";")
     },
     "expr-stmt" : {
@@ -76,13 +76,13 @@ losu_grammar.stx = {
         syntax.ref("logic-or-expr"), syntax.optional(syntax.term("="), syntax.ref("expr"))
     },
     "logic-or-expr" : {
-        syntax.ref("logic-and-expr"), syntax.optional(syntax.cond_or({syntax.term("||")}, {syntax.term("»ò")}), syntax.ref("logic-or-expr"))
+        syntax.ref("logic-and-expr"), syntax.optional(syntax.cond_or({syntax.term("||")}, {syntax.term("ï¿½ï¿½")}), syntax.ref("logic-or-expr"))
     },
     "logic-and-expr" : {
-        syntax.ref("equal-expr"), syntax.optional(syntax.cond_or({syntax.term("&&")}, {syntax.term("ÇÒ")}), syntax.ref("logic-and-expr"))
+        syntax.ref("equal-expr"), syntax.optional(syntax.cond_or({syntax.term("&&")}, {syntax.term("ï¿½ï¿½")}), syntax.ref("logic-and-expr"))
     },
     "equal-expr" : {
-        syntax.ref("relat-expr"), syntax.optional(syntax.cond_or({syntax.term("==")}, {syntax.term("!=")}, {syntax.term("µÈÓÚ")}, {syntax.term("²»µÈÓÚ")}), syntax.ref("equal-expr"))
+        syntax.ref("relat-expr"), syntax.optional(syntax.cond_or({syntax.term("==")}, {syntax.term("!=")}, {syntax.term("ï¿½ï¿½ï¿½ï¿½")}, {syntax.term("ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½")}), syntax.ref("equal-expr"))
     },
     "relat-expr" : {
         syntax.ref("add-expr"), syntax.optional(syntax.cond_or({syntax.term(">")}, {syntax.term("<")}, {syntax.term(">=")}, {syntax.term("<=")}), syntax.ref("relat-expr"))
@@ -102,7 +102,7 @@ losu_grammar.stx = {
         {syntax.term("--")},
         {syntax.term("-")},
         {syntax.term("!")},
-        {syntax.term("·Ç")}
+        {syntax.term("ï¿½ï¿½")}
     )},
     "postfix-expr" : {
         syntax.cond_or({syntax.term("++")}, {syntax.term("--")}), syntax.optional(syntax.ref("postfix-expr"))
@@ -133,7 +133,7 @@ losu_grammar.stx = {
 @end
 
 var main = new parsergen.generator
-main.add_grammar("ÂåÊé", losu_grammar)
+main.add_grammar("ï¿½ï¿½ï¿½ï¿½", losu_grammar)
 
 main.stop_on_error = false
 main.unicode_cvt = cvt

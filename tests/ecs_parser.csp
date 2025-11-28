@@ -37,7 +37,7 @@ function get_lexical(reg_builder)
         "lsig" : reg_builder("^(>|<|&|(\\|)|&&|(\\|\\|)|!|=(=|>)?|!=?|>=?|<=?)$"),
         "brac" : reg_builder("^(\\(|\\)|\\[|\\]|\\{|\\}|,)$"),
         "prep" : reg_builder("^@.*$"),
-        "ign" :  reg_builder("^([ \\f\\r\\t\\v]+|#.*)$"),
+        "ign" :  reg_builder("^([ \\f\\r\\t]+|#.*)$"),
         "err" :  reg_builder("^(\"|\'|(\\|)|\\.\\.)$")
     }.to_hash_map()
     @end
