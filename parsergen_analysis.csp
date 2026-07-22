@@ -1,0 +1,250 @@
+# Covariant Script ParserGen Grammar Analysis v1.0.0
+# Provides: cycle detection, unreachable rule check, FIRST overlap warning
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+package parsergen_analysis
+
+import parsergen
+
+function collect_refs(seq, out)
+    foreach it in seq
+        switch it.type
+            case parsergen.syntax_type.ref
+                out.insert(it.data)
+            end
+            case parsergen.syntax_type.nlook
+                collect_refs(it.data, out)
+            end
+            case parsergen.syntax_type.repeat
+                collect_refs(it.data, out)
+            end
+            case parsergen.syntax_type.opt
+                collect_refs(it.data, out)
+            end
+            case parsergen.syntax_type.cond
+                foreach cond_p in it.data
+                    collect_refs(cond_p.data, out)
+                end
+            end
+        end
+    end
+end
+
+function build_dep_graph(stx)
+    var graph = new hash_map
+    foreach rule in stx
+        var deps = new hash_set
+        collect_refs(rule.second, deps)
+        graph[rule.first] := deps
+    end
+    return move(graph)
+end
+
+function collect_left_refs(seq, stx, out, depth)
+    if depth > 10
+        return
+    end
+    foreach it in seq
+        switch it.type
+            case parsergen.syntax_type.term
+                break
+            end
+            case parsergen.syntax_type.token
+                break
+            end
+            case parsergen.syntax_type.ref
+                out.insert(it.data)
+                if stx.exist(it.data)
+                    collect_left_refs(stx.at(it.data), stx, out, depth + 1)
+                end
+                break
+            end
+            case parsergen.syntax_type.nlook
+                continue
+            end
+            case parsergen.syntax_type.repeat
+                collect_left_refs(it.data, stx, out, depth + 1)
+                continue
+            end
+            case parsergen.syntax_type.opt
+                collect_left_refs(it.data, stx, out, depth + 1)
+                continue
+            end
+            case parsergen.syntax_type.cond
+                foreach cond_p in it.data
+                    collect_left_refs(cond_p.data, stx, out, depth + 1)
+                end
+                break
+            end
+        end
+    end
+end
+
+function detect_left_recursion(stx)
+    var results = new array
+    foreach rule in stx
+        var left_refs = new hash_set
+        collect_left_refs(rule.second, stx, left_refs, 0)
+        if left_refs.exist(rule.first)
+            results.push_back(rule.first)
+        end
+    end
+    return move(results)
+end
+
+function find_unreachable(stx)
+    var graph = build_dep_graph(stx)
+    var reachable = new hash_set
+    var queue = new array
+    if stx.exist("begin")
+        queue.push_back("begin")
+        reachable.insert("begin")
+    end
+    while !queue.empty()
+        var cur = queue.front
+        queue.pop_front()
+        if graph.exist(cur)
+            foreach dep in graph.at(cur)
+                if !reachable.exist(dep)
+                    reachable.insert(dep)
+                    queue.push_back(dep)
+                end
+            end
+        end
+    end
+    var unreachable = new array
+    foreach rule in stx
+        if !reachable.exist(rule.first) && rule.first != "ignore"
+            unreachable.push_back(rule.first)
+        end
+    end
+    return move(unreachable)
+end
+
+function collect_first_set(seq, stx, depth)
+    var data_set = new hash_set
+    var type_set = new hash_set
+    if depth > 10
+        return {data_set, type_set}
+    end
+    foreach it in seq
+        switch it.type
+            case parsergen.syntax_type.term
+                data_set.insert(it.data)
+                break
+            end
+            case parsergen.syntax_type.token
+                type_set.insert(it.data)
+                break
+            end
+            case parsergen.syntax_type.ref
+                if stx.exist(it.data)
+                    var sub = collect_first_set(stx.at(it.data), stx, depth + 1)
+                    data_set = hash_set.merge(data_set, sub[0])
+                    type_set = hash_set.merge(type_set, sub[1])
+                end
+                break
+            end
+            case parsergen.syntax_type.nlook
+                continue
+            end
+            case parsergen.syntax_type.repeat
+                var sub = collect_first_set(it.data, stx, depth + 1)
+                data_set = hash_set.merge(data_set, sub[0])
+                type_set = hash_set.merge(type_set, sub[1])
+                continue
+            end
+            case parsergen.syntax_type.opt
+                var sub = collect_first_set(it.data, stx, depth + 1)
+                data_set = hash_set.merge(data_set, sub[0])
+                type_set = hash_set.merge(type_set, sub[1])
+                continue
+            end
+            case parsergen.syntax_type.cond
+                foreach cond_p in it.data
+                    var sub = collect_first_set(cond_p.data, stx, depth + 1)
+                    data_set = hash_set.merge(data_set, sub[0])
+                    type_set = hash_set.merge(type_set, sub[1])
+                end
+                break
+            end
+        end
+    end
+    return {data_set, type_set}
+end
+
+function check_first_overlap(stx)
+    var warnings = new array
+    foreach rule in stx
+        foreach it in rule.second
+            if it.type == parsergen.syntax_type.cond
+                var idx = 0
+                foreach cond_p in it.data
+                    var set_a = collect_first_set(cond_p.data, stx, 0)
+                    var jdx = idx + 1
+                    var it2 = it.data.begin
+                    foreach i in range(jdx) do it2.next()
+                    while it2 != it.data.end
+                        var set_b = collect_first_set(it2.data.data, stx, 0)
+                        var overlap_data = hash_set.intersect(set_a[0], set_b[0])
+                        var overlap_type = hash_set.intersect(set_a[1], set_b[1])
+                        if !overlap_data.empty() || !overlap_type.empty()
+                            var msg = "Rule \"" + rule.first + "\": alternatives " + idx + " and " + jdx + " have overlapping FIRST set"
+                            if !overlap_data.empty()
+                                msg += " (terms: " + overlap_data + ")"
+                            end
+                            if !overlap_type.empty()
+                                msg += " (tokens: " + overlap_type + ")"
+                            end
+                            warnings.push_back(msg)
+                        end
+                        it2.next()
+                        ++jdx
+                    end
+                    ++idx
+                end
+            end
+        end
+    end
+    return move(warnings)
+end
+
+function analyze(stx)
+    var report = new array
+    var left_rec = detect_left_recursion(stx)
+    foreach r in left_rec
+        report.push_back("[LEFT_RECURSION] Rule \"" + r + "\" is left-recursive (will cause infinite loop)")
+    end
+    var unreachable = find_unreachable(stx)
+    foreach r in unreachable
+        report.push_back("[UNREACHABLE] Rule \"" + r + "\" is never referenced from \"begin\"")
+    end
+    var overlaps = check_first_overlap(stx)
+    foreach w in overlaps
+        report.push_back("[OVERLAP] " + w)
+    end
+    return move(report)
+end
+
+function print_report(stx)
+    var report = analyze(stx)
+    if report.empty()
+        system.out.println("Grammar analysis: No issues found.")
+    else
+        system.out.println("Grammar analysis: " + report.size + " issue(s) found:")
+        foreach it in report
+            system.out.println("  " + it)
+        end
+    end
+end

@@ -3,18 +3,21 @@ import ecs_parser
 
 constant syntax = parsergen.syntax
 
+@begin
 var tiny_lexical = {
     "id"  : regex.build("^[A-Za-z_]\\w*$"),
     "num" : regex.build("^[0-9]+$"),
-    "sig" : regex.build("^(\\+|-|\\*|/|=|<|\\(|\\)|;|:=?)$"),
+    "sig" : regex.build("^(\\+|-|\\*|/|%|=|<|>|\\(|\\)|;|:=?)$"),
     "ign" : regex.build("^(\\s+|\\{[^\\}]*\\}?)$"),
     "err" : regex.build("^:$")
 }.to_hash_map()
+@end
 
+@begin
 var tiny_syntax = {
     # Beginning of Parsing
     "begin" : {syntax.ref("stmts")},
-    "stmts" : {syntax.ref("statement"), syntax.repeat(syntax.term(";"), syntax.ref("statement"))},
+    "stmts" : {syntax.ref("statement"), syntax.repeat(syntax.term(";"), syntax.ref("statement")), syntax.optional(syntax.term(";"))},
     "statement" : {syntax.cond_or(
         {syntax.ref("if-stmt")},
         {syntax.ref("repeat-stmt")},
@@ -33,17 +36,19 @@ var tiny_syntax = {
     "read-stmt" : {syntax.term("read"), syntax.token("id")},
     "write-stmt" : {syntax.term("write"), syntax.ref("expr")},
     "expr" : {syntax.ref("sexp"), syntax.optional(syntax.ref("cmp-op"), syntax.ref("sexp"))},
-    "cmp-op" : {syntax.cond_or({syntax.term("<")}, {syntax.term("=")})},
+    "cmp-op" : {syntax.cond_or({syntax.term("<")}, {syntax.term(">")}, {syntax.term("=")})},
     "sexp" : {syntax.ref("term"), syntax.repeat(syntax.ref("add-op"), syntax.ref("term"))},
     "add-op" : {syntax.cond_or({syntax.term("+")}, {syntax.term("-")})},
     "term" : {syntax.ref("fact"), syntax.repeat(syntax.ref("mul-op"), syntax.ref("fact"))},
-    "mul-op" : {syntax.cond_or({syntax.term("*")}, {syntax.term("/")})},
+    "mul-op" : {syntax.cond_or({syntax.term("*")}, {syntax.term("/")}, {syntax.term("%")})},
     "fact" : {syntax.cond_or(
         {syntax.term("("), syntax.ref("expr"), syntax.term(")")},
         {syntax.token("num")}, {syntax.token("id")}
     )}
 }.to_hash_map()
+@end
 
+@begin
 var cminus_lexical = {
     "id"  : regex.build("^[A-Za-z_]\\w*$"),
     "num" : regex.build("^[0-9]+$"),
@@ -51,7 +56,9 @@ var cminus_lexical = {
     "ign" : regex.build("^(\\s+|/|/\\*([^\\*]|\\*(?!/))*(\\*/)?)$"),
     "err" : regex.build("^~$")
 }.to_hash_map()
+@end
 
+@begin
 var cminus_syntax = {
     # Beginning of Parsing
     "begin" : {
@@ -157,7 +164,9 @@ var cminus_syntax = {
         syntax.ref("expression"), syntax.repeat(syntax.term(","), syntax.ref("expression"))
     } 
 }.to_hash_map()
+@end
 
+@begin
 var json_lexical = {
     "val" : regex.build("^\\w+$"),
     "num" : regex.build("^[0-9]+\\.?([0-9]+)?$"),
@@ -166,7 +175,9 @@ var json_lexical = {
     "ign" : regex.build("^\\s+$"),
     "err" : regex.build("^\"$")
 }.to_hash_map()
+@end
 
+@begin
 var json_syntax = {
     "begin" : {syntax.cond_or(
         {syntax.ref("object")},
@@ -197,6 +208,7 @@ var json_syntax = {
         {syntax.term("null")}
     )}
 }.to_hash_map()
+@end
 
 var tiny_grammar = new parsergen.grammar
 var cminus_grammar = new parsergen.grammar
