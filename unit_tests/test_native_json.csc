@@ -2,18 +2,23 @@ import json_native, parsergen, regex
 
 constant syntax = parsergen.syntax
 
+var test_pass = 0
+var test_fail = 0
+
 function assert_true(name, cond)
     if cond
-        system.out.println("  PASS: " + name)
+        ++test_pass
     else
+        ++test_fail
         system.out.println("  FAIL: " + name)
     end
 end
 
 function assert_false(name, cond)
     if !cond
-        system.out.println("  PASS: " + name)
+        ++test_pass
     else
+        ++test_fail
         system.out.println("  FAIL: " + name + " (expected fail)")
     end
 end
@@ -86,4 +91,10 @@ end
 system.out.println("Native (avg 3):  " + (nt/3) + " ms")
 if nt < dt
     system.out.println("Speedup: " + (dt/nt) + "x")
+end
+
+system.out.println("")
+system.out.println("Passed: " + test_pass + ", Failed: " + test_fail)
+if test_fail > 0
+    system.exit(1)
 end
