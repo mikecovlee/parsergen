@@ -183,16 +183,64 @@ else
 end
 ```
 
+### `parsergen_codegen` &mdash; Native Code Generator
+
+Generate a standalone, high-performance native parser package from a grammar
+definition. The generated package expands the grammar into direct
+recursive-descent parse functions with pre-computed predict (boot) sets,
+eliminating runtime interpretation overhead. It exposes the same API as
+`parsergen.generator`, making it a drop-in replacement.
+
+```js
+import parsergen_codegen, parsergen, regex
+
+// Define grammar as usual
+var gram = new parsergen.grammar
+gram.ext = ".*\\.json"
+gram.stx = json_stx
+
+// Provide lex regex pattern strings (cannot extract from regex objects)
+@begin
+var lex_regexes = {
+    "num" : "^[0-9]+\\.?([0-9]+)?$",
+    "str" : "^(\"|\"([^\"]|\\\\\")*\"?)$",
+    "sig" : "^(:|,|\\[|\\]|\\{|\\})$",
+    "ign" : "^\\s+$"
+}.to_hash_map()
+@end
+
+var gen = new parsergen_codegen.code_generator
+gen.generate("json_parser", gram, lex_regexes, "./json_parser.csp")
+```
+
+Use the generated parser (API compatible with `parsergen.generator`):
+
+```js
+import json_parser
+var gen = new json_parser.generator
+gen.from_string("{\"a\": 1, \"b\": [2, 3]}")
+var ast = gen.ast    // syntax_tree, identical to dynamic parser output
+```
+
+Key features of generated parsers:
+- Native recursive descent &mdash; grammar expanded into direct `_parse_*()` functions, no interpreter loop
+- Pre-computed predict sets &mdash; no `init()`/`prep_syntax()` overhead at parse time
+- Standalone package &mdash; no need to pass grammar objects at runtime
+- Identical AST output &mdash; verified node-by-node against the dynamic parser
+- Drop-in replacement &mdash; same `from_string`/`from_file`/`get_errors` API
+- 2&ndash;3x speedup &mdash; measured on TINY, C-MINUS, and ECS grammars
+
 ## Project Structure
 
 ```
 parsergen.csp          Core parser / lexer / generator
+parsergen_codegen.csp  Native recursive-descent parser code generator (v2.0.0)
 parsergen_debug.csp    Debug build with extended logging
 ebnfigen.csp           EBNF exporter (syntax → EBNF text)
 ebnf_parser.csp        EBNF parser (EBNF text → syntax)
 parsergen_analysis.csp Grammar analyzer (lr / unreachable / overlap)
 visitorgen.csp         AST visitor code generator
-unit_tests/            8 test suites, 132+ test cases
+unit_tests/            10 test suites, 300+ test cases
 tests/                 Integration test grammars (tiny, cminus, JSON, ECS)
 misc/                  Utility scripts
 ```

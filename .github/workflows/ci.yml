@@ -147,6 +147,10 @@ jobs:
       - name: Run unit tests
         shell: bash
         run: |
+          echo "=== Pre-generate parsers ==="
+          cs --import-path "${{ github.workspace }}" "${{ github.workspace }}/misc/test_codegen_full.csc" 2>&1
+          echo ""
+
           echo "=== Unit Tests ==="
           fail=0
           for test in unit_tests/test_*.csc; do
