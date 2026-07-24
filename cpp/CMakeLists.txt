@@ -36,6 +36,9 @@ target_link_libraries(parsergen PUBLIC pcre2-8 pcre2-32 utfcpp)
 add_executable(parsergen_test test/main.cpp)
 target_link_libraries(parsergen_test parsergen)
 
+add_executable(test_ecs_cpp test/test_ecs_cpp.cpp)
+target_link_libraries(test_ecs_cpp parsergen)
+
 # --- CNI layer (optional, requires CovScript SDK) ---
 if(DEFINED ENV{CS_DEV_PATH})
     message(STATUS "CovScript SDK detected at $ENV{CS_DEV_PATH}")
@@ -45,6 +48,7 @@ if(DEFINED ENV{CS_DEV_PATH})
 
     add_library(parsergen_cni SHARED cni/parsergen_cni.cpp)
     target_link_libraries(parsergen_cni parsergen covscript)
+    target_link_options(parsergen_cni PRIVATE -Wl,--export-all-symbols)
     set_target_properties(parsergen_cni PROPERTIES
         OUTPUT_NAME parsergen_cxx PREFIX "" SUFFIX ".cse")
 endif()
