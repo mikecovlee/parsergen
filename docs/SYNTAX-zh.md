@@ -214,7 +214,6 @@ gen.from_string("calc", "x = 1 + (2 * y);")
 
 ## 参见
 
-- [静态代码生成器](README-zh.md#parsergen_codegen----静态代码生成器)
 - [EBNF 解析器与导出器](README-zh.md#ebnfigen----ebnf-导出器)
 - [语法分析器](README-zh.md#parsergen_analysis----语法分析)
 - [错误恢复](README-zh.md#parsergenrecovering_parser_type)

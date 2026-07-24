@@ -180,62 +180,16 @@ else
 end
 ```
 
-### `parsergen_codegen` &mdash; 原生代码生成器
-
-从语法定义生成独立、高性能的原生解析器包。生成的包将语法展开为直接的递归下降
-解析函数，并预计算预测（boot）集，消除运行时解释开销。它暴露与
-`parsergen.generator` 相同的 API，可以无缝替换。
-
-```js
-import parsergen_codegen, parsergen, regex
-
-// 和平常一样定义语法
-var gram = new parsergen.grammar
-gram.ext = ".*\\.json"
-gram.stx = json_stx
-
-// 提供词法正则表达式字符串（无法从 regex 对象中提取 pattern）
-@begin
-var lex_regexes = {
-    "num" : "^[0-9]+\\.?([0-9]+)?$",
-    "str" : "^(\"|\"([^\"]|\\\\\")*\"?)$",
-    "sig" : "^(:|,|\\[|\\]|\\{|\\})$",
-    "ign" : "^\\s+$"
-}.to_hash_map()
-@end
-
-var gen = new parsergen_codegen.code_generator
-gen.generate("json_parser", gram, lex_regexes, "./json_parser.csp")
-```
-
-使用生成的解析器（API 与 `parsergen.generator` 兼容）：
-
-```js
-import json_parser
-var gen = new json_parser.generator
-gen.from_string("{\"a\": 1, \"b\": [2, 3]}")
-var ast = gen.ast    // syntax_tree，与动态解析器输出完全一致
-```
-
-生成解析器的核心优势：
-- 原生递归下降 &mdash; 语法展开为直接的 `_parse_*()` 函数，无解释器循环
-- 预计算预测集 &mdash; 解析时没有 `init()`/`prep_syntax()` 开销
-- 独立包 &mdash; 运行时无需传递语法对象
-- AST 输出一致 &mdash; 与动态解析器逐节点验证通过
-- 无缝替换 &mdash; 相同的 `from_string`/`from_file`/`get_errors` API
-- 2&ndash;3 倍加速 &mdash; 在 TINY、C-MINUS 和 ECS 语法上实测
-
 ## 项目结构
 
 ```
 parsergen.csp           核心解析器 / 词法分析器 / 生成器
-parsergen_codegen.csp   原生递归下降解析器代码生成器 (v2.0.0)
 parsergen_debug.csp     调试版本（扩展日志）
 ebnfigen.csp            EBNF 导出器（syntax → EBNF 文本）
 ebnf_parser.csp         EBNF 解析器（EBNF 文本 → syntax）
 parsergen_analysis.csp  语法分析器（左递归 / 不可达 / 重叠）
 visitorgen.csp          AST 访问器代码生成器
-unit_tests/             10 组测试，300+ 用例
+unit_tests/             8 组测试，300+ 用例
 tests/                  集成测试语法（tiny, cminus, JSON, ECS）
 misc/                   实用工具脚本
 docs/                   文档

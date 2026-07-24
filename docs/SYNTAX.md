@@ -228,7 +228,6 @@ gen.from_string("calc", "x = 1 + (2 * y);")
 
 ## See Also
 
-- [Static Code Generator](README.md#parsergen_codegen----static-code-generator)
 - [EBNF Parser & Exporter](README.md#ebnfigen----ebnf-exporter)
 - [Grammar Analyzer](README.md#parsergen_analysis----grammar-analysis)
 - [Error Recovery](README.md#parsergenrecovering_parser_type)

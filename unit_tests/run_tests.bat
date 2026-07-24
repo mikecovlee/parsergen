@@ -49,26 +49,6 @@ echo --- test_recovery.csc ---
 if %errorlevel% neq 0 set FAILED=1
 echo.
 
-echo --- Generate parsers for codegen test ---
-%CS% --import-path "%IMPORT_PATH%" "%~dp0..\misc\test_codegen_full.csc"
-if %errorlevel% neq 0 set FAILED=1
-echo.
-
-echo --- Generate parsers for codegen core test ---
-%CS% --import-path "%IMPORT_PATH%" "%~dp0..\misc\test_codegen_core.csc"
-if %errorlevel% neq 0 set FAILED=1
-echo.
-
-echo --- test_codegen_full.csc ---
-%CS% --import-path "%IMPORT_PATH%" "%~dp0test_codegen_full.csc"
-if %errorlevel% neq 0 set FAILED=1
-echo.
-
-echo --- test_codegen_core.csc ---
-%CS% --import-path "%IMPORT_PATH%" "%~dp0test_codegen_core.csc"
-if %errorlevel% neq 0 set FAILED=1
-echo.
-
 echo ==============================
 if %FAILED% equ 0 (
     echo  ALL TESTS PASSED
