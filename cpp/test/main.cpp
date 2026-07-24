@@ -21,7 +21,7 @@ static void check(const std::string &name, bool cond)
 static pg::lexical_t make_json_lex()
 {
 	return {
-	    {"val", "^\\w+$"},
+	    {"id", "^[a-z]+$"},
 	    {"num", "^[0-9]+\\.?([0-9]+)?$"},
 	    {"str", "^(\"|\"([^\"]|\\\\\")*\"?)$"},
 	    {"sig", "^(:|,|\\[|\\]|\\{|\\})$"},
@@ -32,23 +32,24 @@ static pg::lexical_t make_json_lex()
 
 static pg::syntax_map_t make_json_stx()
 {
+	using namespace pg;
 	using namespace pg::syntax;
-	pg::syntax_map_t stx;
-	stx["begin"] = {cond_or({{ref("object")}}, {{ref("array")}})};
+	syntax_map_t stx;
+	stx["begin"] = {cond_or({{ref("object")}, {ref("array")}})};
 	stx["object"] = {term("{"), optional({ref("members")}), term("}")};
 	stx["members"] = {ref("pair"), repeat({term(","), ref("pair")})};
 	stx["pair"] = {token("str"), term(":"), ref("value")};
 	stx["array"] = {term("["), optional({ref("elements")}), term("]")};
 	stx["elements"] = {ref("value"), repeat({term(","), ref("value")})};
-	stx["value"] = {cond_or(
-	    {{token("str")}},
-	    {{token("num")}},
-	    {{ref("object")}},
-	    {{ref("array")}},
-	    {{term("true")}},
-	    {{term("false")}},
-	    {{term("null")}})};
-	stx["ignore"] = {repeat({token("ign")})};
+	stx["value"] = {cond_or({
+	    {token("str")},
+	    {token("num")},
+	    {ref("object")},
+	    {ref("array")},
+	    {term("true")},
+	    {term("false")},
+	    {term("null")},
+	})};
 	return stx;
 }
 
@@ -76,9 +77,10 @@ static void test_json_parse()
 static void test_tiny_parse()
 {
 	std::cout << "--- TINY parse ---\n";
+	using namespace pg;
 	using namespace pg::syntax;
 
-	pg::grammar gram;
+	grammar gram;
 	gram.lex = {
 	    {"id", "^[A-Za-z_]\\w*$"},
 	    {"num", "^[0-9]+$"},
@@ -91,15 +93,18 @@ static void test_tiny_parse()
 	                     optional({term(";")})};
 	gram.stx["statement"] = {cond_or({{ref("assign-stmt")}})};
 	gram.stx["assign-stmt"] = {token("id"), term("="), ref("expr")};
-	gram.stx["expr"] = {ref("term"), repeat({cond_or({{term("+")}}, {{term("-")}}), ref("term")})};
-	gram.stx["term"] = {ref("fact"), repeat({cond_or({{term("*")}}, {{term("/")}}), ref("fact")})};
-	gram.stx["fact"] = {cond_or(
-	    {{term("("), ref("expr"), term(")")}},
-	    {{token("num")}},
-	    {{token("id")}})};
+	gram.stx["expr"] = {ref("term"),
+	                    repeat({cond_or({{term("+")}, {term("-")}}), ref("term")})};
+	gram.stx["term"] = {ref("fact"),
+	                    repeat({cond_or({{term("*")}, {term("/")}}), ref("fact")})};
+	gram.stx["fact"] = {cond_or({
+	    {term("("), ref("expr"), term(")")},
+	    {token("num")},
+	    {token("id")},
+	})};
 	gram.stx["ignore"] = {repeat({token("ign")})};
 
-	pg::generator gen;
+	generator gen;
 	gen.show_prompt = false;
 	gen.add_grammar("tiny", std::move(gram));
 
@@ -112,14 +117,15 @@ static void test_tiny_parse()
 static void test_empty_input()
 {
 	std::cout << "--- empty input ---\n";
+	using namespace pg;
 	using namespace pg::syntax;
 
-	pg::grammar gram;
+	grammar gram;
 	gram.lex = {{"id", "^[a-z]+$"}, {"ign", "^\\s+$"}};
 	gram.stx["begin"] = {optional({token("id")})};
 	gram.stx["ignore"] = {repeat({token("ign")})};
 
-	pg::generator gen;
+	generator gen;
 	gen.show_prompt = false;
 	gen.add_grammar("test", std::move(gram));
 
@@ -129,15 +135,16 @@ static void test_empty_input()
 static void test_error_recovery()
 {
 	std::cout << "--- error recovery ---\n";
+	using namespace pg;
 	using namespace pg::syntax;
 
-	pg::syntax_map_t stx;
+	syntax_map_t stx;
 	stx["begin"] = {repeat({ref("stmt")})};
 	stx["stmt"] = {token("id"), term("="), token("num"), token("endl")};
 	stx["ignore"] = {repeat({token("endl")})};
 
-	pg::lexer_type lexer;
-	pg::lexical_t lex = {
+	lexer_type lexer;
+	lexical_t lex = {
 	    {"id", "^[a-z]+$"},
 	    {"num", "^[0-9]+$"},
 	    {"sig", "^(=)$"},
@@ -146,7 +153,7 @@ static void test_error_recovery()
 	};
 	auto tokens = lexer.run(lex, "x = 1\ny = \nz = 3\n");
 
-	pg::recovering_parser_type parser;
+	recovering_parser_type parser;
 	parser.init(stx);
 	bool ok = parser.parse_with_recovery(tokens);
 	check("recovery has errors", !ok);

@@ -116,18 +116,17 @@ token_list_t unicode_lexer_type::run(const lexical_t &lexical, const std::string
 		else {
 			std::u32string nbuff = buff;
 			nbuff.push_back(ch);
-			std::unordered_set<std::string> nset;
+			std::unordered_set<std::string> still_match;
 			for (auto &name : lexical_set) {
-				if (!compiled[name]->match(nbuff))
-					nset.insert(name);
+				if (compiled[name]->match(nbuff))
+					still_match.insert(name);
 			}
-			for (auto &name : nset)
-				lexical_set.erase(name);
-			if (lexical_set.empty()) {
+			if (still_match.empty()) {
 				process_token();
 				lexical_set.clear();
 			}
 			else {
+				lexical_set = std::move(still_match);
 				buff = nbuff;
 				cursor_forward();
 			}
