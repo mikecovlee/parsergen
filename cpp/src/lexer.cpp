@@ -2,6 +2,13 @@
 
 #include <pcre2.hpp>
 
+namespace pg {
+std::string regex_pattern(const regex_handle_t &reg)
+{
+	return std::static_pointer_cast<pcre2_regex>(reg)->pattern;
+}
+} // namespace pg
+
 struct pg::lexer_type::compiled_regex {
 	pcre2_regex_t reg;
 

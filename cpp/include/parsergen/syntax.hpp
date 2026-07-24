@@ -74,6 +74,14 @@ namespace syntax {
 			data.push_back(make_syntax(syntax_type::cond_p, seq));
 		return make_syntax(syntax_type::cond, std::move(data));
 	}
+
+	inline syntax_t cond_or(std::vector<syntax_seq> args)
+	{
+		syntax_seq data;
+		for (auto &seq : args)
+			data.push_back(make_syntax(syntax_type::cond_p, std::move(seq)));
+		return make_syntax(syntax_type::cond, std::move(data));
+	}
 } // namespace syntax
 
 } // namespace pg

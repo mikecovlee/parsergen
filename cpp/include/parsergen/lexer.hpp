@@ -15,6 +15,9 @@ namespace pg {
 using lexical_t = std::map<std::string, std::string>;
 using token_list_t = std::vector<token_type>;
 
+using regex_handle_t = std::shared_ptr<void>;
+std::string regex_pattern(const regex_handle_t &reg);
+
 struct grammar {
 	std::string ext = ".*";
 	lexical_t lex;
