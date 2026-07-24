@@ -57,7 +57,62 @@ function build_dep_graph(stx)
     return move(graph)
 end
 
-function collect_left_refs(seq, stx, out, depth)
+function is_nullable_seq(seq, stx, nullable)
+    foreach it in seq
+        switch it.type
+            case parsergen.syntax_type.term
+                return false
+            end
+            case parsergen.syntax_type.token
+                return false
+            end
+            case parsergen.syntax_type.ref
+                if !nullable.exist(it.data)
+                    return false
+                end
+            end
+            case parsergen.syntax_type.nlook
+                continue
+            end
+            case parsergen.syntax_type.repeat
+                continue
+            end
+            case parsergen.syntax_type.opt
+                continue
+            end
+            case parsergen.syntax_type.cond
+                var any_nullable = false
+                foreach cond_p in it.data
+                    if is_nullable_seq(cond_p.data, stx, nullable)
+                        any_nullable = true
+                        break
+                    end
+                end
+                if !any_nullable
+                    return false
+                end
+            end
+        end
+    end
+    return true
+end
+
+function compute_nullable(stx)
+    var nullable = new hash_set
+    var changed = true
+    while changed
+        changed = false
+        foreach rule in stx
+            if !nullable.exist(rule.first) && is_nullable_seq(rule.second, stx, nullable)
+                nullable.insert(rule.first)
+                changed = true
+            end
+        end
+    end
+    return move(nullable)
+end
+
+function collect_left_refs(seq, stx, out, depth, nullable)
     if depth > 10
         return
     end
@@ -72,7 +127,10 @@ function collect_left_refs(seq, stx, out, depth)
             case parsergen.syntax_type.ref
                 out.insert(it.data)
                 if stx.exist(it.data)
-                    collect_left_refs(stx.at(it.data), stx, out, depth + 1)
+                    collect_left_refs(stx.at(it.data), stx, out, depth + 1, nullable)
+                end
+                if nullable.exist(it.data)
+                    continue
                 end
                 break
             end
@@ -80,16 +138,23 @@ function collect_left_refs(seq, stx, out, depth)
                 continue
             end
             case parsergen.syntax_type.repeat
-                collect_left_refs(it.data, stx, out, depth + 1)
+                collect_left_refs(it.data, stx, out, depth + 1, nullable)
                 continue
             end
             case parsergen.syntax_type.opt
-                collect_left_refs(it.data, stx, out, depth + 1)
+                collect_left_refs(it.data, stx, out, depth + 1, nullable)
                 continue
             end
             case parsergen.syntax_type.cond
+                var any_nullable = false
                 foreach cond_p in it.data
-                    collect_left_refs(cond_p.data, stx, out, depth + 1)
+                    collect_left_refs(cond_p.data, stx, out, depth + 1, nullable)
+                    if is_nullable_seq(cond_p.data, stx, nullable)
+                        any_nullable = true
+                    end
+                end
+                if any_nullable
+                    continue
                 end
                 break
             end
@@ -98,10 +163,11 @@ function collect_left_refs(seq, stx, out, depth)
 end
 
 function detect_left_recursion(stx)
+    var nullable = compute_nullable(stx)
     var results = new array
     foreach rule in stx
         var left_refs = new hash_set
-        collect_left_refs(rule.second, stx, left_refs, 0)
+        collect_left_refs(rule.second, stx, left_refs, 0, nullable)
         if left_refs.exist(rule.first)
             results.push_back(rule.first)
         end

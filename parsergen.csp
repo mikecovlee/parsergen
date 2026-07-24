@@ -655,7 +655,8 @@ class parser_type
                             continue
                         end
                         case parse_state.eof
-                            return parse_state.eof
+                            reaches_eof = true
+                            continue
                         end
                     end
                     push_stage("cond_or")

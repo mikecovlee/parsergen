@@ -803,7 +803,8 @@ class parser_type
                         case parse_state.eof
                             #%debug
                             parse_log("Predict Reaches EOF in CONDITION")
-                            return parse_state.eof
+                            reaches_eof = true
+                            continue
                         end
                     end
                     push_stage("cond_or")
