@@ -1,0 +1,13 @@
+import parsergen_cxx as _cxx
+
+package test_pkg
+
+class test_class
+    var _val = 0
+    function set_val(v)
+        _val = v
+    end
+    function get_val()
+        return _val
+    end
+end

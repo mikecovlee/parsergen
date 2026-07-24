@@ -4,18 +4,17 @@ package parsergen
 
 var syntax_type = _cxx.syntax_type
 var parse_state = _cxx.parse_state
-var grammar = _cxx.grammar
-var lexer_type = _cxx.lexer_type
-var parser_type = _cxx.parser_type
-var recovering_parser_type = _cxx.recovering_parser_type
-var generator = _cxx.generator
-var print_error = _cxx.print_error
-var print_ast = _cxx.print_ast
 
 namespace syntax
-    var token = _cxx.syntax.token
-    var term = _cxx.syntax.term
-    var ref = _cxx.syntax.ref
+    function token(data)
+        return _cxx.syntax.token(data)
+    end
+    function term(data)
+        return _cxx.syntax.term(data)
+    end
+    function ref(name)
+        return _cxx.syntax.ref(name)
+    end
     function nlook(...args)
         return _cxx.syntax.nlook(args)
     end
@@ -28,4 +27,101 @@ namespace syntax
     function cond_or(...args)
         return _cxx.syntax.cond_or(args)
     end
+end
+
+class grammar
+    var ext = ".*"
+    var lex = null
+    var stx = null
+end
+
+class lexer_type
+    var _impl = null
+    var error_log = null
+    function initialize()
+        _impl = _cxx.lexer_type()
+    end
+    function run(lex, text)
+        var result = _impl.run(lex, text)
+        error_log = _impl.error_log()
+        return result
+    end
+end
+
+class parser_type
+    var _impl = null
+    var log = false
+    function initialize()
+        _impl = _cxx.parser_type()
+    end
+    function init(stx)
+        _impl.init(stx)
+    end
+    function run(stx, tokens)
+        return _impl.run(stx, tokens)
+    end
+    function production()
+        return _impl.production()
+    end
+    function get_log(n)
+        return _impl.get_log(n)
+    end
+end
+
+class recovering_parser_type
+    var _impl = null
+    function initialize()
+        _impl = _cxx.recovering_parser_type()
+    end
+    function init(stx)
+        _impl.init(stx)
+    end
+    function parse_with_recovery(tokens)
+        return _impl.parse_with_recovery(tokens)
+    end
+    function get_all_errors()
+        return _impl.get_all_errors()
+    end
+end
+
+class generator
+    var _impl = null
+    var stop_on_error = true
+    var show_prompt = true
+    var enable_log = false
+    var file_path = "<FILE>"
+    var code_buff = null
+    function initialize()
+        _impl = _cxx.generator()
+    end
+    function add_grammar(lang, gram)
+        var cxx_gram = _cxx.make_grammar_from(gram.ext, gram.lex, gram.stx)
+        _impl.add_grammar(lang, cxx_gram)
+    end
+    function from_string(lang, str)
+        _impl.set_stop_on_error(stop_on_error)
+        _impl.set_show_prompt(show_prompt)
+        _impl.set_enable_log(enable_log)
+        return _impl.from_string(lang, str)
+    end
+    function from_file(path)
+        _impl.set_stop_on_error(stop_on_error)
+        _impl.set_show_prompt(show_prompt)
+        _impl.set_enable_log(enable_log)
+        return _impl.from_file(path)
+    end
+    function ast()
+        return _impl.ast()
+    end
+    function get_errors()
+        return _impl.get_errors()
+    end
+end
+
+function print_error(file, code, err)
+    _cxx.print_error(file, code, err)
+end
+
+function print_ast(tree)
+    _cxx.print_ast(tree)
 end
