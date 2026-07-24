@@ -15,7 +15,6 @@ ParserGen 是一个为 [Covariant Script](https://github.com/covscript/covscript
 | 错误恢复 | 跳过同步点，一次报告多个错误 |
 | EBNF 支持 | EBNF 文本 &#8594; 语法定义；语法定义 &#8594; EBNF 导出 |
 | 语法分析 | 左递归检测、不可达规则、FIRST 重叠警告 |
-| 静态代码生成 | 预计算 boot set，生成独立解析器包 |
 | 增量解析 | `partial_parser_type` 支持交互式/可恢复解析 |
 
 ## 快速开始
