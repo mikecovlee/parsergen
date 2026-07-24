@@ -1,0 +1,12 @@
+{
+	"Author" : "Michael Lee",
+	"Dependencies" : 
+	[
+		"parsergen",
+		"regex"
+	],
+	"Info" : "EBNF Parser for ParserGen written in Covariant Script",
+	"Name" : "ebnf_parser",
+	"Target" : "https://raw.githubusercontent.com/mikecovlee/parsergen/main/ebnf_parser.csp",
+	"Version" : "1.0.0"
+}

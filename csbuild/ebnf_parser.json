@@ -1,0 +1,12 @@
+{
+    "Type": "Package",
+    "Name": "ebnf_parser",
+    "Info": "EBNF Parser for ParserGen written in Covariant Script",
+    "Author": "Michael Lee",
+    "Version": "1.0.0",
+    "Target": "ebnf_parser.csp",
+    "Dependencies": [
+        "parsergen",
+        "regex"
+    ]
+}

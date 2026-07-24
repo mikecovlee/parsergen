@@ -1,0 +1,6 @@
+[
+    "parsergen",
+    "parsergen_debug",
+    "parsergen_analysis",
+    "ebnf_parser"
+]

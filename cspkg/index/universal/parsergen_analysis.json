@@ -1,0 +1,11 @@
+{
+	"Author" : "Michael Lee",
+	"Dependencies" : 
+	[
+		"parsergen"
+	],
+	"Info" : "Grammar Analysis for ParserGen written in Covariant Script",
+	"Name" : "parsergen_analysis",
+	"Target" : "https://raw.githubusercontent.com/mikecovlee/parsergen/main/parsergen_analysis.csp",
+	"Version" : "1.0.0"
+}
