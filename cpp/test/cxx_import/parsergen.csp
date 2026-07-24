@@ -1,0 +1,31 @@
+import parsergen_cxx as _cxx
+
+package parsergen
+
+var syntax_type = _cxx.syntax_type
+var parse_state = _cxx.parse_state
+var grammar = _cxx.grammar
+var lexer_type = _cxx.lexer_type
+var parser_type = _cxx.parser_type
+var recovering_parser_type = _cxx.recovering_parser_type
+var generator = _cxx.generator
+var print_error = _cxx.print_error
+var print_ast = _cxx.print_ast
+
+namespace syntax
+    var token = _cxx.syntax.token
+    var term = _cxx.syntax.term
+    var ref = _cxx.syntax.ref
+    function nlook(...args)
+        return _cxx.syntax.nlook(args)
+    end
+    function repeat(...args)
+        return _cxx.syntax.repeat(args)
+    end
+    function optional(...args)
+        return _cxx.syntax.optional(args)
+    end
+    function cond_or(...args)
+        return _cxx.syntax.cond_or(args)
+    end
+end
