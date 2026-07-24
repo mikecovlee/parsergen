@@ -1033,6 +1033,8 @@ class partial_parser_type extends parser_type
                     #%debug
                     this.parse_log("Injecting On-EOF Hook")
                     on_eof_hook(this)
+                    this.memo_cache = new hash_map
+                    this.ign_cache = new hash_map
                     # Fallback to the beginning of matching
                     this.stack.front.cursor = begin_cur
                     this.stack.front.product.nodes = new array

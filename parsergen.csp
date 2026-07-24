@@ -837,6 +837,8 @@ class partial_parser_type extends parser_type
             if result != parse_state.accept
                 if this.eof()
                     on_eof_hook(this)
+                    this.memo_cache = new hash_map
+                    this.ign_cache = new hash_map
                     this.stack.front.cursor = begin_cur
                     this.stack.front.product.nodes = new array
                     it = seq.begin
