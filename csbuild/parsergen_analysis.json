@@ -1,0 +1,11 @@
+{
+    "Type": "Package",
+    "Name": "parsergen_analysis",
+    "Info": "Grammar Analysis for ParserGen written in Covariant Script",
+    "Author": "Michael Lee",
+    "Version": "1.0.0",
+    "Target": "parsergen_analysis.csp",
+    "Dependencies": [
+        "parsergen"
+    ]
+}

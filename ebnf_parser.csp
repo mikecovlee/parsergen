@@ -1,0 +1,304 @@
+# Covariant Script EBNF Parser v1.0.0
+# Parses EBNF grammar text into parsergen syntax hash_map
+# Supports ISO 14977 EBNF with extensions:
+#   <name>  - token type reference
+#   !(...)  - negative lookahead (PEG style)
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+# Copyright (C) 2017-2026 Michael Lee(李登淳)
+#
+# Email:   lee@unicov.cn, mikecovlee@163.com
+# Github:  https://github.com/mikecovlee
+# Website: http://covscript.org.cn
+
+package ebnf_parser
+
+import parsergen, regex
+
+constant syntax = parsergen.syntax
+
+@begin
+var ebnf_lexical = {
+    "id"  : regex.build("^[A-Za-z_][A-Za-z0-9_]*$"),
+    "str" : regex.build("^(\"|\"([^\"]|\\\\\")*\"?)$"),
+    "sig" : regex.build("^(=|;|\\||\\(|\\)|\\[|\\]|\\{|\\}|<|>|!)$"),
+    "ign" : regex.build("^(\\s+|\\(|\\(\\*([^\\*]|\\*(?!\\)))*(\\*\\))?)$"),
+    "err" : regex.build("^\"$")
+}.to_hash_map()
+@end
+
+@begin
+var ebnf_syntax = {
+    "begin" : {
+        syntax.repeat(syntax.ref("rule"))
+    },
+    "rule" : {
+        syntax.token("id"), syntax.term("="), syntax.ref("expression"), syntax.term(";")
+    },
+    "expression" : {
+        syntax.ref("term"), syntax.repeat(syntax.term("|"), syntax.ref("term"))
+    },
+    "term" : {
+        syntax.repeat(syntax.ref("factor"))
+    },
+    "factor" : {syntax.cond_or(
+        {syntax.ref("nlook")},
+        {syntax.ref("token_ref")},
+        {syntax.ref("group")},
+        {syntax.ref("option")},
+        {syntax.ref("repetition")},
+        {syntax.token("str")},
+        {syntax.token("id")}
+    )},
+    "nlook" : {
+        syntax.term("!"), syntax.term("("), syntax.ref("expression"), syntax.term(")")
+    },
+    "token_ref" : {
+        syntax.term("<"), syntax.token("id"), syntax.term(">")
+    },
+    "group" : {
+        syntax.term("("), syntax.ref("expression"), syntax.term(")")
+    },
+    "option" : {
+        syntax.term("["), syntax.ref("expression"), syntax.term("]")
+    },
+    "repetition" : {
+        syntax.term("{"), syntax.ref("expression"), syntax.term("}")
+    }
+}.to_hash_map()
+@end
+
+function unquote(str)
+    var result = new string
+    var i = 1
+    while i < str.size - 1
+        if str[i] == '\\' && i + 1 < str.size - 1
+            ++i
+            if str[i] == 'n'
+                result += '\n'
+            else
+                if str[i] == 't'
+                    result += '\t'
+                else
+                    result += str[i]
+                end
+            end
+        else
+            result += str[i]
+        end
+        ++i
+    end
+    return move(result)
+end
+
+function make_cond(terms)
+    var data = new array
+    foreach it in terms do data.push_back(parsergen.make_syntax(parsergen.syntax_type.cond_p, it))
+    return parsergen.make_syntax(parsergen.syntax_type.cond, data)
+end
+
+function make_nlook(seq)
+    return parsergen.make_syntax(parsergen.syntax_type.nlook, seq)
+end
+
+function make_repeat(seq)
+    return parsergen.make_syntax(parsergen.syntax_type.repeat, seq)
+end
+
+function make_optional(seq)
+    return parsergen.make_syntax(parsergen.syntax_type.opt, seq)
+end
+
+function convert_expression(nodes)
+    var terms = new array
+    foreach it in nodes
+        if typeid it == typeid parsergen.syntax_tree
+            if it.root == "term"
+                terms.push_back(convert_term(it.nodes))
+            end
+        end
+    end
+    if terms.size == 1
+        return terms[0]
+    else
+        return make_cond(terms)
+    end
+end
+
+function convert_term(nodes)
+    var seq = new array
+    foreach it in nodes
+        if typeid it == typeid parsergen.syntax_tree
+            if it.root == "factor"
+                var f = convert_factor(it.nodes)
+                if f != null
+                    seq.push_back(move(f))
+                end
+            end
+        end
+    end
+    return move(seq)
+end
+
+function convert_factor(nodes)
+    foreach it in nodes
+        if typeid it == typeid parsergen.token_type
+            if it.type == "id"
+                return syntax.ref(it.data)
+            end
+            if it.type == "str"
+                return syntax.term(unquote(it.data))
+            end
+        end
+        if typeid it == typeid parsergen.syntax_tree
+            switch it.root
+                case "token_ref"
+                    return syntax.token(get_token_name(it.nodes))
+                end
+                case "nlook"
+                    var expr = get_inner_expression(it.nodes)
+                    var seq = convert_expression_to_seq(expr)
+                    return make_nlook(seq)
+                end
+                case "group"
+                    var expr = get_inner_expression(it.nodes)
+                    return convert_expression(expr)
+                end
+                case "option"
+                    var expr = get_inner_expression(it.nodes)
+                    var seq = convert_expression_to_seq(expr)
+                    return make_optional(seq)
+                end
+                case "repetition"
+                    var expr = get_inner_expression(it.nodes)
+                    var seq = convert_expression_to_seq(expr)
+                    return make_repeat(seq)
+                end
+            end
+        end
+    end
+    return null
+end
+
+function get_token_name(nodes)
+    foreach it in nodes
+        if typeid it == typeid parsergen.token_type && it.type == "id"
+            return it.data
+        end
+    end
+    return ""
+end
+
+function get_inner_expression(nodes)
+    foreach it in nodes
+        if typeid it == typeid parsergen.syntax_tree && it.root == "expression"
+            return it.nodes
+        end
+    end
+    return new array
+end
+
+function convert_expression_to_seq(expr_nodes)
+    var terms = new array
+    foreach it in expr_nodes
+        if typeid it == typeid parsergen.syntax_tree && it.root == "term"
+            terms.push_back(convert_term(it.nodes))
+        end
+    end
+    if terms.size == 1
+        return terms[0]
+    else
+        return {make_cond(terms)}
+    end
+end
+
+function convert_rule(nodes)
+    var name = ""
+    var expr_nodes = null
+    foreach it in nodes
+        if typeid it == typeid parsergen.token_type && it.type == "id"
+            name = it.data
+        end
+        if typeid it == typeid parsergen.syntax_tree && it.root == "expression"
+            expr_nodes = it.nodes
+        end
+    end
+    if name == "" || expr_nodes == null
+        return null
+    end
+    var terms = new array
+    foreach it in expr_nodes
+        if typeid it == typeid parsergen.syntax_tree && it.root == "term"
+            terms.push_back(convert_term(it.nodes))
+        end
+    end
+    if terms.size == 1
+        return {name, terms[0]}
+    else
+        return {name, {make_cond(terms)}}
+    end
+end
+
+class parser
+    var gen = null
+    var rules = null
+    var error_msg = null
+    function initialize()
+        gen = new parsergen.generator
+        gen.show_prompt = false
+        gen.stop_on_error = true
+        var gram = new parsergen.grammar
+        gram.lex = ebnf_lexical
+        gram.stx = ebnf_syntax
+        gen.add_grammar("ebnf", gram)
+    end
+    function parse(text)
+        rules = new hash_map
+        error_msg = null
+        if !gen.from_string("ebnf", text)
+            if gen.lexer != null && !gen.lexer.error_log.empty()
+                link err = gen.lexer.error_log[0]
+                error_msg = err.text + " at line " + (err.pos[1] + 1)
+            else
+                if gen.parser != null
+                    var err = gen.parser.get_log(0)
+                    if !err.empty()
+                        error_msg = err[0].text + " at line " + (err[0].pos[1] + 1)
+                    else
+                        error_msg = "Unknown parse error"
+                    end
+                else
+                    error_msg = "Unknown parse error"
+                end
+            end
+            return false
+        end
+        var ast = gen.ast
+        foreach it in ast.nodes
+            if typeid it == typeid parsergen.syntax_tree && it.root == "rule"
+                var result = convert_rule(it.nodes)
+                if result != null
+                    rules[result[0]] := result[1]
+                end
+            end
+        end
+        return true
+    end
+    function get_syntax()
+        return rules
+    end
+    function get_error()
+        return error_msg
+    end
+end

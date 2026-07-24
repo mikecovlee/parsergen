@@ -1,2 +1,10 @@
 .ecs_output/
 .DS_Store
+*.ebnf
+misc/check_ebnf.py
+misc/test_analysis.csc
+misc/test_ebnf_parser.csc
+misc/test_ecs_memo.csc
+misc/test_memo.csc
+misc/test_recovery.csc
+unit_tests/_test_temp.*
