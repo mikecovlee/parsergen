@@ -840,7 +840,11 @@ class partial_parser_type extends parser_type
                     this.stack.front.product.nodes = new array
                     it = seq.begin
                     if this.eof()
-                        this.error("Incomplete sentence", this.lex.back.pos)
+                        if this.lex.empty()
+                            this.error("Incomplete sentence", {0, 0})
+                        else
+                            this.error("Incomplete sentence", this.lex.back.pos)
+                        end
                     else
                         continue
                     end

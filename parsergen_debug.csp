@@ -145,6 +145,9 @@ class lexer_type
         error_log.push_back(move(err))
     end
     function process_token()
+        if lexical_set.empty()
+            return
+        end
         if lexical_set.size > 1
             if lexical_set.exist("err")
                 error("Unexpected input \"" + buff + "\"", wpos)
@@ -244,6 +247,9 @@ class unicode_lexer_type
         error_log.push_back(move(err))
     end
     function process_token()
+        if lexical_set.empty()
+            return
+        end
         if lexical_set.size > 1
             if lexical_set.exist("err")
                 error("Unexpected input \"" + cvt.wide2local(buff) + "\"", wpos)
@@ -335,6 +341,12 @@ struct parse_error
     var pos = {0, 0}
 end
 
+struct parse_memo
+    var result = 0
+    var cursor = 0
+    var product = null
+end
+
 namespace parse_state
 @begin
     constant
@@ -388,6 +400,9 @@ class parser_type
     #%debug
     var log_indent = 0
     var log = false
+    # Memoization
+    var memo_cache = null
+    var ign_cache = null
     # Parsing Stage
     function push_stage(root)
         var prev_cursor = 0
@@ -481,7 +496,11 @@ class parser_type
                 #%debug
                 parse_log("Incomplete Match")
                 if eof()
-                    error("Incomplete sentence", lex.back.pos)
+                    if lex.empty()
+                        error("Incomplete sentence", {0, 0})
+                    else
+                        error("Incomplete sentence", lex.back.pos)
+                    end
                 else
                     error("Incomplete sentence", peek().pos)
                 end
@@ -493,9 +512,14 @@ class parser_type
     function try_ignore()
         var cur = null
         if !on_ign && syn.exist("ignore")
+            var ign_key = "ign:" + stack.front.cursor
+            if ign_cache.exist(ign_key)
+                return ign_cache.at(ign_key)
+            end
             if ign_bootset != null && stack.front.cursor < lex.size && !ign_bootset.predict(lex.at(stack.front.cursor))
                 #%debug
                 parse_log("Predict Failed in IGNORE")
+                ign_cache[ign_key] := null
                 return null
             end
             on_ign = true
@@ -515,6 +539,7 @@ class parser_type
             parse_log("End Ignore")
             #!debug
             on_ign = false
+            ign_cache[ign_key] := cur
         end
         return move(cur)
     end
@@ -527,6 +552,9 @@ class parser_type
     # Match Prediction
     function predict(set)
         if eof()
+            if set != null && set.epsilon
+                return parse_state.accept
+            end
             return parse_state.eof
         end
         if set != null && !set.empty()
@@ -562,7 +590,11 @@ class parser_type
                 if eof()
                     #%debug
                     parse_log("End Of File")
-                    error("Early EOF, expected token <" + it.data + ">", lex.back.pos)
+                    if lex.empty()
+                        error("Early EOF, expected token <" + it.data + ">", {0, 0})
+                    else
+                        error("Early EOF, expected token <" + it.data + ">", lex.back.pos)
+                    end
                     return parse_state.eof
                 end
                 if peek().type != it.data
@@ -591,7 +623,11 @@ class parser_type
                 if eof()
                     #%debug
                     parse_log("End Of File")
-                    error("Early EOF, expected token \'" + it.data + "\'", lex.back.pos)
+                    if lex.empty()
+                        error("Early EOF, expected token \'" + it.data + "\'", {0, 0})
+                    else
+                        error("Early EOF, expected token \'" + it.data + "\'", lex.back.pos)
+                    end
                     return parse_state.eof
                 end
                 if peek().data != it.data
@@ -621,6 +657,15 @@ class parser_type
                     parse_log("Predict Failed in " + it.data)
                     return result
                 end
+                var memo_key = it.data + ":" + stack.front.cursor
+                if memo_cache.exist(memo_key)
+                    link memo = memo_cache.at(memo_key)
+                    if memo.result == parse_state.accept
+                        push(memo.product)
+                        stack.front.cursor = memo.cursor
+                    end
+                    return memo.result
+                end
                 push_stage(it.data)
                 #~debug
                 parse_log("Deduce " + it.data)
@@ -632,12 +677,24 @@ class parser_type
                 if result == parse_state.accept
                     #%debug
                     parse_log("Accept " + it.data)
-                    accept()
+                    link prev_stage = pop_stage()
+                    var memo_entry = new parse_memo
+                    memo_entry.result = parse_state.accept
+                    memo_entry.cursor = prev_stage.cursor
+                    memo_entry.product = prev_stage.product
+                    memo_cache[memo_key] := memo_entry
+                    push(prev_stage.product)
+                    stack.front.cursor = prev_stage.cursor
                     return parse_state.accept
                 else
                     #%debug
                     parse_log("Reject " + it.data)
                     pop_stage()
+                    var memo_entry = new parse_memo
+                    memo_entry.result = result
+                    memo_entry.cursor = stack.front.cursor
+                    memo_entry.product = null
+                    memo_cache[memo_key] := memo_entry
                     return result
                 end
             end
@@ -942,6 +999,8 @@ class parser_type
         #%debug
         log_indent = 0
         on_ign = false
+        memo_cache = new hash_map
+        ign_cache = new hash_map
         lex = lex_output
         push_stage("begin")
         return match_syntax(syn.begin) == parse_state.accept && stack.size == 1 && eof()
@@ -978,7 +1037,11 @@ class partial_parser_type extends parser_type
                     this.stack.front.product.nodes = new array
                     it = seq.begin
                     if this.eof()
-                        this.error("Incomplete sentence", this.lex.back.pos)
+                        if this.lex.empty()
+                            this.error("Incomplete sentence", {0, 0})
+                        else
+                            this.error("Incomplete sentence", this.lex.back.pos)
+                        end
                     else
                         continue
                     end
@@ -990,6 +1053,60 @@ class partial_parser_type extends parser_type
             it.next()
         end
         return parse_state.accept
+    end
+end
+
+class recovering_parser_type extends parser_type
+    var sync_types = null
+    var all_errors = null
+    function initialize()
+        sync_types = new hash_set
+        sync_types.insert("endl")
+        all_errors = new array
+    end
+    function find_sync_after(pos)
+        var i = pos
+        while i < this.lex.size
+            if sync_types.exist(this.lex[i].type) || this.lex[i].data == ";"
+                return i + 1
+            end
+            ++i
+        end
+        return this.lex.size
+    end
+    function parse_with_recovery(lex_output)
+        all_errors = new array
+        var start = 0
+        var max_retries = 100
+        var retries = 0
+        while start < lex_output.size && retries < max_retries
+            this.error_log = new array
+            this.stack = new array
+            this.max_cursor = 0
+            this.on_ign = false
+            this.memo_cache = new hash_map
+            this.ign_cache = new hash_map
+            this.lex = lex_output
+            this.push_stage("begin")
+            this.stack.front.cursor = start
+            if this.match_syntax(this.syn.begin) == parse_state.accept && this.eof()
+                return true
+            end
+            var err = this.get_log(0)
+            if !err.empty()
+                all_errors.push_back(err[0])
+            end
+            var next = find_sync_after(this.max_cursor)
+            if next <= start
+                next = start + 1
+            end
+            start = next
+            ++retries
+        end
+        return all_errors.empty()
+    end
+    function get_all_errors()
+        return all_errors
     end
 end
 
@@ -1190,7 +1307,13 @@ class generator
         return false
     end
     function get_errors()
-        var err = {(lexer.error_log)..., (parser.get_log(0))...}
+        var err = new array
+        if lexer != null
+            foreach it in lexer.error_log do err.push_back(it)
+        end
+        if parser != null
+            foreach it in parser.get_log(0) do err.push_back(it)
+        end
         err.sort([](lhs, rhs)->lhs.pos[1] < rhs.pos[1])
         return move(err)
     end
