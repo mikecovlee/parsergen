@@ -7,13 +7,4 @@ misc/test_ebnf_parser.csc
 misc/test_ecs_memo.csc
 misc/test_memo.csc
 misc/test_recovery.csc
-unit_tests/test_json_parser.csp
-unit_tests/ecs_gen_parser.csp
-unit_tests/tiny_gen_parser.csp
-unit_tests/cminus_gen_parser.csp
-unit_tests/test_nlook_parser.csp
-unit_tests/test_repeat_bt_parser.csp
-unit_tests/test_nested_parser.csp
-unit_tests/test_condor_parser.csp
-unit_tests/test_opt_complex_parser.csp
 unit_tests/_test_temp.*

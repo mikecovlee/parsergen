@@ -195,6 +195,7 @@ visitorgen.csp         AST visitor code generator
 unit_tests/            8 test suites, 300+ test cases
 tests/                 Integration test grammars (tiny, cminus, JSON, ECS)
 misc/                  Utility scripts
+docs/                  Documentation
 ```
 
 ## License
