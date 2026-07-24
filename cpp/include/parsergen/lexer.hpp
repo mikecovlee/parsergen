@@ -1,0 +1,72 @@
+#pragma once
+#include <parsergen/syntax.hpp>
+#include <parsergen/token.hpp>
+#include <parsergen/unicode.hpp>
+
+#include <map>
+#include <memory>
+#include <string>
+#include <unordered_map>
+#include <unordered_set>
+#include <vector>
+
+namespace pg {
+
+using lexical_t = std::map<std::string, std::string>;
+using token_list_t = std::vector<token_type>;
+
+struct grammar {
+	std::string ext = ".*";
+	lexical_t lex;
+	std::unordered_map<std::string, syntax_seq> stx;
+};
+
+class lexer_type {
+	struct compiled_regex;
+
+	std::unordered_set<std::string> lexical_set;
+	std::string buff;
+	std::string data;
+	std::array<int, 2> wpos = {0, 0};
+	std::array<int, 3> pos = {0, 0, 0};
+
+	std::unordered_map<std::string, std::shared_ptr<compiled_regex>> regex_cache;
+
+	std::shared_ptr<compiled_regex> get_regex(const std::string &pattern);
+	void process_token();
+
+public:
+	std::vector<lex_error> error_log;
+	token_list_t output;
+
+	void error(const std::string &str, std::array<int, 2> p);
+	token_list_t run(const lexical_t &lexical, const std::string &text);
+};
+
+class unicode_lexer_type {
+	struct compiled_wregex;
+
+	std::shared_ptr<codecvt::charset> cvt;
+	std::unordered_set<std::string> lexical_set;
+	std::u32string buff;
+	std::u32string data;
+	std::array<int, 2> wpos = {0, 0};
+	std::array<int, 3> pos = {0, 0, 0};
+
+	std::unordered_map<std::string, std::shared_ptr<compiled_wregex>> regex_cache;
+
+	std::shared_ptr<compiled_wregex> get_wregex(const std::string &pattern);
+	void cursor_forward();
+	void process_token();
+
+public:
+	std::vector<lex_error> error_log;
+	token_list_t output;
+
+	explicit unicode_lexer_type(std::shared_ptr<codecvt::charset> c) : cvt(std::move(c)) {}
+
+	void error(const std::string &str, std::array<int, 2> p);
+	token_list_t run(const lexical_t &lexical, const std::string &text);
+};
+
+} // namespace pg
