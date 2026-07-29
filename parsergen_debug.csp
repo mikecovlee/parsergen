@@ -1177,10 +1177,18 @@ function read_stream(ifs, data)
         data.push_back(line)
     end
 end
+function make_grammar_from(ext, lex, stx)
+    var g = new grammar
+    g.ext = ext
+    g.lex = lex
+    g.stx = stx
+    return g
+end
 
 class generator
     # Grammars
     var rules = new hash_map
+    var lang_cvts = new hash_map
     # String Input
     var input = new string
     # Line Separated Input(for Error Reporting)
@@ -1201,9 +1209,13 @@ class generator
     var file_path = "<FILE>"
     function priv_run(lang)
         if rules.exist(lang)
-            if unicode_cvt != null
+            var cvt = unicode_cvt
+            if lang_cvts.exist(lang)
+                cvt = lang_cvts[lang]
+            end
+            if cvt != null
                 lexer = new unicode_lexer_type
-                lexer.cvt = unicode_cvt
+                lexer.cvt = cvt
             else
                 lexer = new lexer_type
             end
@@ -1319,5 +1331,61 @@ class generator
         end
         err.sort([](lhs, rhs)->lhs.pos[1] < rhs.pos[1])
         return move(err)
+    end
+    function add_language(lang, coding, gram)
+        var compiled_lex = new hash_map
+        foreach it in gram.lex
+            compiled_lex[it.first] = regex.build_optimize(it.second)
+        end
+        gram.lex = compiled_lex
+        var cvt = null
+        if coding == "utf8"
+            if unicode == null
+                throw runtime.exception("Please install unicode package first!")
+            end
+            cvt = new unicode.codecvt.utf8
+        else
+            if coding == "gbk"
+                if unicode == null
+                    throw runtime.exception("Please install unicode package first!")
+                end
+                cvt = new unicode.codecvt.gbk
+            end
+        end
+        lang_cvts[lang] = cvt
+        rules[lang] := gram
+    end
+    function lex_string(lang, text, start_line)
+        if !rules.exist(lang)
+            return null
+        end
+        link grammar = rules[lang]
+        var cvt = null
+        if lang_cvts.exist(lang)
+            cvt = lang_cvts[lang]
+        end
+        var lex = null
+        if cvt != null
+            lex = new unicode_lexer_type
+            lex.cvt = cvt
+        else
+            lex = new lexer_type
+        end
+        lex.pos[1] = start_line
+        var tokens = lex.run(grammar.lex, text)
+        lexer = lex
+        return tokens
+    end
+    function get_lex_errors()
+        if lexer != null
+            return lexer.error_log
+        end
+        return new array
+    end
+    function get_tokens()
+        return token_buff
+    end
+    function get_code()
+        return code_buff
     end
 end

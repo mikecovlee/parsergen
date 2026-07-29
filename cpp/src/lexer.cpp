@@ -7,6 +7,12 @@ std::string regex_pattern(const regex_handle_t &reg)
 {
 	return std::static_pointer_cast<pcre2_regex>(reg)->pattern;
 }
+
+bool regex_match(const std::string &pattern, const std::string &text)
+{
+	auto reg = std::make_shared<pcre2_regex>(pattern);
+	return !pcre2_regex_match(reg, text, 0).empty();
+}
 } // namespace pg
 
 struct pg::lexer_type::compiled_regex {

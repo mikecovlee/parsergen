@@ -18,27 +18,25 @@ struct syntax_tree {
 	std::vector<ast_node> nodes;
 };
 
-inline void print_ast_impl(int indent, const std::shared_ptr<syntax_tree> &tree)
+inline void print_ast_impl(const std::string &indent, const std::shared_ptr<syntax_tree> &tree)
 {
 	if (!tree)
 		return;
-	std::cout << tree->root << "\n";
 	for (auto &it : tree->nodes) {
-		for (int i = 0; i < indent + 2; ++i)
-			std::cout << ' ';
-		std::cout << tree->root << " -> ";
-		if (auto *tok = std::get_if<token_type>(&it)) {
-			std::cout << "\"" << tok->data << "\"\n";
+		if (auto *sub = std::get_if<std::shared_ptr<syntax_tree>>(&it)) {
+			std::cout << indent << "(" << (*sub)->root << "\n";
+			print_ast_impl(indent + "  ", *sub);
+			std::cout << indent << ")\n";
 		}
-		else if (auto *sub = std::get_if<std::shared_ptr<syntax_tree>>(&it)) {
-			print_ast_impl(indent + 2, *sub);
+		else if (auto *tok = std::get_if<token_type>(&it)) {
+			std::cout << indent << "[" << tok->type << " " << tok->data << "]\n";
 		}
 	}
 }
 
 inline void print_ast(const std::shared_ptr<syntax_tree> &tree)
 {
-	print_ast_impl(0, tree);
+	print_ast_impl("", tree);
 }
 
 } // namespace pg

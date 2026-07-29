@@ -11,11 +11,13 @@ namespace pg {
 
 class generator {
 	std::unordered_map<std::string, grammar> rules;
+	std::unordered_map<std::string, std::string> lang_codings;
 	std::string input;
 	std::vector<std::string> code_buff;
 	token_list_t token_buff;
 	std::shared_ptr<syntax_tree> ast_;
 	std::unique_ptr<lexer_type> lexer_;
+	std::unique_ptr<unicode_lexer_type> unicode_lexer_;
 	std::unique_ptr<parser_type> parser_;
 
 	std::string file_path = "<FILE>";
@@ -28,8 +30,12 @@ public:
 	bool enable_log = false;
 
 	void add_grammar(const std::string &lang, grammar gram);
+	void add_language(const std::string &lang, const std::string &coding, grammar gram);
 	bool from_string(const std::string &lang, const std::string &str);
 	bool from_file(const std::string &path);
+
+	token_list_t lex_string(const std::string &lang, const std::string &text, int start_line);
+	std::vector<lex_error> get_lex_errors() const;
 
 	std::shared_ptr<syntax_tree> ast() const { return ast_; }
 	const token_list_t &tokens() const { return token_buff; }

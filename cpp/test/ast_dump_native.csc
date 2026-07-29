@@ -1,4 +1,4 @@
-import parsergen, regex
+import parsergen
 import ecs_parser
 
 function dump_ast(tree, indent)
@@ -20,7 +20,7 @@ end
 var gen = new parsergen.generator
 gen.stop_on_error = true
 gen.show_prompt = false
-gen.add_grammar("ecs-lang", ecs_parser.grammar)
+gen.add_language("ecs-lang", "ascii", ecs_parser.grammar)
 
 var file = context.cmd_args.at(1)
 if gen.from_file(file)

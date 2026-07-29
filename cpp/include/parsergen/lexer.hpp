@@ -17,6 +17,7 @@ using token_list_t = std::vector<token_type>;
 
 using regex_handle_t = std::shared_ptr<void>;
 std::string regex_pattern(const regex_handle_t &reg);
+bool regex_match(const std::string &pattern, const std::string &text);
 
 struct grammar {
 	std::string ext = ".*";
@@ -31,7 +32,6 @@ class lexer_type {
 	std::string buff;
 	std::string data;
 	std::array<int, 2> wpos = {0, 0};
-	std::array<int, 3> pos = {0, 0, 0};
 
 	std::unordered_map<std::string, std::shared_ptr<compiled_regex>> regex_cache;
 
@@ -39,6 +39,7 @@ class lexer_type {
 	void process_token();
 
 public:
+	std::array<int, 3> pos = {0, 0, 0};
 	std::vector<lex_error> error_log;
 	token_list_t output;
 
@@ -54,7 +55,6 @@ class unicode_lexer_type {
 	std::u32string buff;
 	std::u32string data;
 	std::array<int, 2> wpos = {0, 0};
-	std::array<int, 3> pos = {0, 0, 0};
 
 	std::unordered_map<std::string, std::shared_ptr<compiled_wregex>> regex_cache;
 
@@ -63,6 +63,7 @@ class unicode_lexer_type {
 	void process_token();
 
 public:
+	std::array<int, 3> pos = {0, 0, 0};
 	std::vector<lex_error> error_log;
 	token_list_t output;
 

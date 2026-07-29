@@ -39,6 +39,9 @@ target_link_libraries(parsergen_test parsergen)
 add_executable(test_ecs_cpp test/test_ecs_cpp.cpp)
 target_link_libraries(test_ecs_cpp parsergen)
 
+add_executable(bench_lex_parse_cpp test/bench_lex_parse_cpp.cpp)
+target_link_libraries(bench_lex_parse_cpp parsergen)
+
 # --- CNI layer (optional, requires CovScript SDK) ---
 if(DEFINED ENV{CS_DEV_PATH})
     message(STATUS "CovScript SDK detected at $ENV{CS_DEV_PATH}")

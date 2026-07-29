@@ -1,4 +1,6 @@
-import parsergen_debug as parsergen, ecs_parser
+import parsergen_debug as parsergen, ecs_parser, regex
+
+var compiled_lex = ecs_parser.get_lexical(regex.build_optimize, false)
 
 function compress_ast(n)
     foreach it in n.nodes
@@ -44,7 +46,7 @@ class repl
             system.exit(0)
         end
         var lexer = new parsergen.lexer_type
-        var tokens = lexer.run(ecs_parser.grammar.lex, line)
+        var tokens = lexer.run(compiled_lex, line)
         if !lexer.error_log.empty()
             parsergen.print_error("<REPL>", code_buff, lexer.error_log)
             return null
