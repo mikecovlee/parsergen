@@ -45,7 +45,6 @@ void lexer_type::error(const std::string &str, std::array<int, 2> p)
 	lex_error err;
 	err.text = str;
 	err.pos = p;
-	--err.pos[0];
 	error_log.push_back(std::move(err));
 }
 
@@ -104,14 +103,12 @@ token_list_t lexer_type::run(const lexical_t &lexical, const std::string &text)
 				error(std::string("Unknown character '") + ch + "'", {pos[0], pos[1]});
 			}
 			++pos[2];
-			if (pos[2] != static_cast<int>(data.size())) {
-				if (data[pos[2]] == '\n') {
-					++pos[1];
-					pos[0] = 0;
-				}
-				else {
-					++pos[0];
-				}
+			if (ch == '\n') {
+				++pos[1];
+				pos[0] = 0;
+			}
+			else {
+				++pos[0];
 			}
 		}
 		else {
@@ -129,14 +126,12 @@ token_list_t lexer_type::run(const lexical_t &lexical, const std::string &text)
 				lexical_set = std::move(still_match);
 				buff = nbuff;
 				++pos[2];
-				if (pos[2] != static_cast<int>(data.size())) {
-					if (data[pos[2]] == '\n') {
-						++pos[1];
-						pos[0] = 0;
-					}
-					else {
-						++pos[0];
-					}
+				if (ch == '\n') {
+					++pos[1];
+					pos[0] = 0;
+				}
+				else {
+					++pos[0];
 				}
 			}
 		}

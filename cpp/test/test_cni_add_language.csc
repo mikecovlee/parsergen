@@ -108,7 +108,7 @@ var ecs_stx = {
 
 var gram = parsergen.make_grammar_from(".*\\.(csp|csc|ecs|ecsx)", ecs_lex, ecs_stx)
 
-var gen = parsergen.generator()
+var gen = new parsergen.generator
 gen.set_show_prompt(false)
 gen.add_language("ecs-lang", "ascii", gram)
 

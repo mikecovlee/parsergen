@@ -518,7 +518,7 @@ int partial_parser_type::match_syntax(const syntax_seq &seq)
 				ign_cache.clear();
 				stack.front().cursor = begin_cur;
 				stack.front().product.nodes.clear();
-				idx = static_cast<std::size_t>(-1);
+				idx = static_cast<std::size_t>(-1); // loop's ++idx resets to 0
 				if (eof()) {
 					if (lex->empty())
 						error("Incomplete sentence", {0, 0});

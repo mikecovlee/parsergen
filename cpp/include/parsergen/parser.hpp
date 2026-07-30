@@ -69,7 +69,7 @@ protected:
 	void do_accept();
 	void do_merge();
 
-	int match_syntax(const syntax_seq &seq);
+	virtual int match_syntax(const syntax_seq &seq);
 	std::optional<int> try_ignore();
 	void ignore();
 	int predict(const std::shared_ptr<bootset_type> &set);
@@ -97,7 +97,7 @@ class partial_parser_type : public parser_type {
 public:
 	std::function<void(partial_parser_type &)> on_eof_hook;
 
-	int match_syntax(const syntax_seq &seq);
+	int match_syntax(const syntax_seq &seq) override;
 };
 
 class recovering_parser_type : public parser_type {

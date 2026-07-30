@@ -33,6 +33,7 @@ public:
 	void add_language(const std::string &lang, const std::string &coding, grammar gram);
 	bool from_string(const std::string &lang, const std::string &str);
 	bool from_file(const std::string &path);
+	bool from_stream(const std::string &lang, std::istream &stream);
 
 	token_list_t lex_string(const std::string &lang, const std::string &text, int start_line);
 	std::vector<lex_error> get_lex_errors() const;

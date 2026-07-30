@@ -105,9 +105,6 @@ end
 function make_token(pos, type, data)
     var t = new token_type
     t.pos = pos
-    if t.pos[0] > 0
-        --t.pos[0]
-    end
     t.type = type
     t.data = data
     return move(t)
@@ -116,6 +113,12 @@ end
 struct lex_error
     var text = new string
     var pos = {0, 0}
+    function set_text(v)
+        text = v
+    end
+    function set_pos(v)
+        pos = v
+    end
 end
 
 class lexer_type
@@ -127,21 +130,19 @@ class lexer_type
     var wpos = {0, 0}
     var pos = {0, 0, 0}
     function cursor_forward()
+        var ch = data[pos[2]]
         ++pos[2]
-        if pos[2] != data.size
-            if data[pos[2]] == '\n'
-                ++pos[1]
-                pos[0] = 0
-            else
-                ++pos[0]
-            end
+        if ch == '\n'
+            ++pos[1]
+            pos[0] = 0
+        else
+            ++pos[0]
         end
     end
     function error(str, pos)
         var err = new lex_error
         err.text = str
         err.pos = pos
-        --err.pos[0]
         error_log.push_back(move(err))
     end
     function process_token()
@@ -210,6 +211,9 @@ class lexer_type
         process_token()
         return output
     end
+    function get_error_log()
+        return error_log
+    end
 end
 
 class unicode_lexer_type
@@ -229,21 +233,19 @@ class unicode_lexer_type
         cvt = new unicode.codecvt.utf8
     end
     function cursor_forward()
+        var ch = data.at(pos[2])
         ++pos[2]
-        if pos[2] != data.size
-            if data.at(pos[2]) == unicode.wchar.from_char('\n')
-                ++pos[1]
-                pos[0] = 0
-            else
-                ++pos[0]
-            end
+        if ch == unicode.wchar.from_char('\n')
+            ++pos[1]
+            pos[0] = 0
+        else
+            ++pos[0]
         end
     end
     function error(str, pos)
         var err = new lex_error
         err.text = str
         err.pos = pos
-        --err.pos[0]
         error_log.push_back(move(err))
     end
     function process_token()
@@ -1021,6 +1023,15 @@ end
 
 class partial_parser_type extends parser_type
     var on_eof_hook = null
+    function set_eof_hook(fn)
+        on_eof_hook = fn
+    end
+    function push_tokens(arr)
+        foreach it in arr do this.lex.push_back(it)
+    end
+    function append_token(tok)
+        this.lex.push_back(tok)
+    end
     function match_syntax(seq) override
         var begin_cur = this.stack.front.cursor
         var it = seq.begin
@@ -1130,21 +1141,20 @@ function print_ast_impl(indent, tree)
     if tree == null
         return
     end
-    system.out.println(tree.root)
     foreach it in tree.nodes
-        foreach i in range(indent + 2) do system.out.print(' ')
-        system.out.print(tree.root + " -> ")
         if typeid it == typeid syntax_tree
-            print_ast_impl(indent + 2, it)
+            system.out.println(indent + "(" + it.root)
+            print_ast_impl(indent + "  ", it)
+            system.out.println(indent + ")")
         end
         if typeid it == typeid token_type
-            system.out.println("\"" + it.data + "\"")
+            system.out.println(indent + "[" + it.type + " " + it.data + "]")
         end
     end
 end
 
 function print_ast(tree)
-    print_ast_impl(0, tree)
+    print_ast_impl("", tree)
 end
 
 function read_stream(ifs, data)
@@ -1183,6 +1193,12 @@ function make_grammar_from(ext, lex, stx)
     g.lex = lex
     g.stx = stx
     return g
+end
+function make_lex_error(text, pos)
+    var e = new lex_error
+    e.text = text
+    e.pos = pos
+    return e
 end
 
 class generator
@@ -1387,5 +1403,23 @@ class generator
     end
     function get_code()
         return code_buff
+    end
+    function get_ast()
+        return ast
+    end
+    function get_code_buff()
+        return code_buff
+    end
+    function get_file_path()
+        return file_path
+    end
+    function set_show_prompt(v)
+        show_prompt = v
+    end
+    function set_stop_on_error(v)
+        stop_on_error = v
+    end
+    function set_enable_log(v)
+        enable_log = v
     end
 end

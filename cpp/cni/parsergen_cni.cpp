@@ -1,5 +1,6 @@
 #include <covscript/cni.hpp>
 #include <covscript/dll.hpp>
+#include <typeindex>
 
 #include <parsergen/parsergen.hpp>
 
@@ -14,6 +15,15 @@ using parser_t    = std::shared_ptr<pg::parser_type>;
 using rparser_t   = std::shared_ptr<pg::recovering_parser_type>;
 using generator_t = std::shared_ptr<pg::generator>;
 
+struct partial_parser_wrapper {
+	pg::partial_parser_type parser;
+	pg::token_list_t token_buff;
+	pg::token_list_t pending_tokens;
+	cs::var eof_hook;
+	bool has_hook = false;
+};
+using pparser_wrapper_t = std::shared_ptr<partial_parser_wrapper>;
+
 static cs::namespace_t syntax_impl_ext            = cs::make_shared_namespace<cs::name_space>();
 static cs::namespace_t grammar_ext                = cs::make_shared_namespace<cs::name_space>();
 static cs::namespace_t token_type_ext             = cs::make_shared_namespace<cs::name_space>();
@@ -22,6 +32,7 @@ static cs::namespace_t syntax_tree_ext            = cs::make_shared_namespace<cs
 static cs::namespace_t parse_error_ext            = cs::make_shared_namespace<cs::name_space>();
 static cs::namespace_t lexer_type_ext             = cs::make_shared_namespace<cs::name_space>();
 static cs::namespace_t parser_type_ext            = cs::make_shared_namespace<cs::name_space>();
+static cs::namespace_t partial_parser_type_ext    = cs::make_shared_namespace<cs::name_space>();
 static cs::namespace_t recovering_parser_type_ext = cs::make_shared_namespace<cs::name_space>();
 static cs::namespace_t generator_ext              = cs::make_shared_namespace<cs::name_space>();
 
@@ -34,6 +45,7 @@ namespace cs_impl {
 	template <> cs::namespace_t &get_ext<perr_t>()      { return parse_error_ext; }
 	template <> cs::namespace_t &get_ext<lexer_t>()     { return lexer_type_ext; }
 	template <> cs::namespace_t &get_ext<parser_t>()    { return parser_type_ext; }
+	template <> cs::namespace_t &get_ext<pparser_wrapper_t>() { return partial_parser_type_ext; }
 	template <> cs::namespace_t &get_ext<rparser_t>()   { return recovering_parser_type_ext; }
 	template <> cs::namespace_t &get_ext<generator_t>() { return generator_ext; }
 
@@ -45,6 +57,7 @@ namespace cs_impl {
 	template <> constexpr const char *get_name_of_type<perr_t>()      { return "parsergen::parse_error"; }
 	template <> constexpr const char *get_name_of_type<lexer_t>()     { return "parsergen::lexer_type"; }
 	template <> constexpr const char *get_name_of_type<parser_t>()    { return "parsergen::parser_type"; }
+	template <> constexpr const char *get_name_of_type<pparser_wrapper_t>() { return "parsergen::partial_parser_type"; }
 	template <> constexpr const char *get_name_of_type<rparser_t>()   { return "parsergen::recovering_parser_type"; }
 	template <> constexpr const char *get_name_of_type<generator_t>() { return "parsergen::generator"; }
 } // namespace cs_impl
@@ -274,14 +287,14 @@ namespace parsergen_cni {
 		return t;
 	}
 
-	array token_pos(const token_t &t) { return {t->pos[0], t->pos[1]}; }
+	array token_pos(const token_t &t) { return {numeric(t->pos[0]), numeric(t->pos[1])}; }
 	string token_type_name(const token_t &t) { return t->type; }
 	string token_data(const token_t &t) { return t->data; }
 
 	// ---- lex_error ----
 
 	string lexerr_text(const lexerr_t &e) { return e->text; }
-	array lexerr_pos(const lexerr_t &e) { return {e->pos[0], e->pos[1]}; }
+	array lexerr_pos(const lexerr_t &e) { return {numeric(e->pos[0]), numeric(e->pos[1])}; }
 
 	// ---- syntax_tree ----
 
@@ -292,7 +305,7 @@ namespace parsergen_cni {
 
 	numeric perr_cursor(const perr_t &e) { return e->cursor; }
 	string perr_text(const perr_t &e) { return e->text; }
-	array perr_pos(const perr_t &e) { return {e->pos[0], e->pos[1]}; }
+	array perr_pos(const perr_t &e) { return {numeric(e->pos[0]), numeric(e->pos[1])}; }
 
 	// ---- lexer_type ----
 
@@ -341,14 +354,6 @@ namespace parsergen_cni {
 		for (auto &t : tokens)
 			tok_list.push_back(*t.const_val<token_t>());
 		return p->run(*gram, tok_list);
-	}
-
-	bool parser_run_grammar(parser_t &p, const grammar_t &gram, const array &tokens)
-	{
-		pg::token_list_t tok_list;
-		for (auto &t : tokens)
-			tok_list.push_back(*t.const_val<token_t>());
-		return p->run(gram->stx, tok_list);
 	}
 
 	tree_t parser_production(parser_t &p)
@@ -400,12 +405,91 @@ namespace parsergen_cni {
 		return arr;
 	}
 
-	// ---- generator ----
+	// ---- partial_parser_type ----
 
-	void gen_add_grammar(generator_t &g, const string &lang, const grammar_t &gram)
+	var make_pparser_var()
 	{
-		g->add_grammar(lang, *gram);
+		return var::make<pparser_wrapper_t>(std::make_shared<partial_parser_wrapper>());
 	}
+
+	bool pparser_run(pparser_wrapper_t &w, const hash_map &stx, const array &tokens)
+	{
+		pg::syntax_map_t gram;
+		for (auto &[key, val] : stx) {
+			string name = key.const_val<string>();
+			gram[name] = to_syntax_seq(val.const_val<array>());
+		}
+		w->token_buff.clear();
+		for (auto &t : tokens)
+			w->token_buff.push_back(*t.const_val<token_t>());
+		constexpr std::size_t eof_hook_reserve = 10000;
+		w->token_buff.reserve(w->token_buff.size() + eof_hook_reserve);
+
+		if (w->has_hook) {
+			std::weak_ptr<partial_parser_wrapper> weak_w = w;
+			w->parser.on_eof_hook = [weak_w](pg::partial_parser_type &) {
+				auto w = weak_w.lock();
+				if (!w) return;
+				w->pending_tokens.clear();
+				cs::invoke(w->eof_hook, var::make<pparser_wrapper_t>(w));
+				for (auto &t : w->pending_tokens)
+					w->token_buff.push_back(std::move(t));
+				w->pending_tokens.clear();
+			};
+		}
+		return w->parser.run(gram, w->token_buff);
+	}
+
+	tree_t pparser_production(pparser_wrapper_t &w)
+	{
+		return w->parser.production();
+	}
+
+	array pparser_get_log(pparser_wrapper_t &w, numeric n)
+	{
+		auto errors = w->parser.get_log(n.as_integer());
+		array arr;
+		for (auto &e : errors)
+			arr.push_back(var::make<perr_t>(std::make_shared<pg::parse_error>(e)));
+		return arr;
+	}
+
+	var pparser_log(vector &args)
+	{
+		auto w = args.at(0).const_val<pparser_wrapper_t>();
+		if (args.size() > 1) { w->parser.log = args.at(1).const_val<bool>(); return args.at(0); }
+		return var::make<bool>(w->parser.log);
+	}
+
+	void pparser_set_eof_hook(pparser_wrapper_t &w, const var &hook)
+	{
+		w->eof_hook = hook;
+		w->has_hook = true;
+	}
+
+	void pparser_push_token(pparser_wrapper_t &w, const token_t &tok)
+	{
+		w->pending_tokens.push_back(*tok);
+	}
+
+	void pparser_push_tokens(pparser_wrapper_t &w, const array &tokens)
+	{
+		for (auto &t : tokens)
+			w->pending_tokens.push_back(*t.const_val<token_t>());
+	}
+
+	// ---- lex_error factory ----
+
+	lexerr_t make_lex_error(const string &text, const array &pos)
+	{
+		auto e = std::make_shared<pg::lex_error>();
+		e->text = text;
+		e->pos = {pos.at(0).const_val<numeric>().as_integer(),
+		          pos.at(1).const_val<numeric>().as_integer()};
+		return e;
+	}
+
+	// ---- generator ----
 
 	bool gen_from_string(generator_t &g, const string &lang, const string &str)
 	{
@@ -431,31 +515,7 @@ namespace parsergen_cni {
 		return arr;
 	}
 
-	bool gen_get_stop_on_error(generator_t &g) { return g->stop_on_error; }
-	bool gen_get_show_prompt(generator_t &g) { return g->show_prompt; }
-	bool gen_get_enable_log(generator_t &g) { return g->enable_log; }
 	string gen_get_file_path(generator_t &g) { return g->path(); }
-
-	var gen_stop_on_error(vector &args)
-	{
-		auto g = args.at(0).const_val<generator_t>();
-		if (args.size() > 1) { g->stop_on_error = args.at(1).const_val<bool>(); return args.at(0); }
-		return var::make<bool>(g->stop_on_error);
-	}
-
-	var gen_show_prompt(vector &args)
-	{
-		auto g = args.at(0).const_val<generator_t>();
-		if (args.size() > 1) { g->show_prompt = args.at(1).const_val<bool>(); return args.at(0); }
-		return var::make<bool>(g->show_prompt);
-	}
-
-	var gen_enable_log(vector &args)
-	{
-		auto g = args.at(0).const_val<generator_t>();
-		if (args.size() > 1) { g->enable_log = args.at(1).const_val<bool>(); return args.at(0); }
-		return var::make<bool>(g->enable_log);
-	}
 
 	void gen_set_stop_on_error(generator_t &g, bool v) { g->stop_on_error = v; }
 	void gen_set_show_prompt(generator_t &g, bool v) { g->show_prompt = v; }
@@ -500,6 +560,20 @@ namespace parsergen_cni {
 		return arr;
 	}
 
+	bool gen_from_stream(generator_t &g, const string &lang, const cs::istream &stream)
+	{
+		return g->from_stream(lang, *stream);
+	}
+
+	// ---- lex_error setters ----
+
+	void lexerr_set_text(lexerr_t &e, const string &text) { e->text = text; }
+	void lexerr_set_pos(lexerr_t &e, const array &pos)
+	{
+		e->pos = {pos.at(0).const_val<numeric>().as_integer(),
+		          pos.at(1).const_val<numeric>().as_integer()};
+	}
+
 	// ---- utility functions ----
 
 	void print_error(const string &file, const array &code, const array &err)
@@ -509,8 +583,17 @@ namespace parsergen_cni {
 			code_vec.push_back(line.const_val<string>());
 		std::vector<pg::parse_error> err_vec;
 		for (auto &e : err) {
-			auto pe = e.const_val<perr_t>();
-			err_vec.push_back(*pe);
+			pg::parse_error pe;
+			if (e.type() == typeid(lexerr_t)) {
+				auto le = e.const_val<lexerr_t>();
+				pe.text = le->text;
+				pe.pos = le->pos;
+			}
+			else {
+				auto p = e.const_val<perr_t>();
+				pe = *p;
+			}
+			err_vec.push_back(pe);
 		}
 		pg::print_error(file, code_vec, err_vec);
 	}
@@ -559,15 +642,34 @@ namespace parsergen_cni {
 		    .add_var("syntax_type", make_namespace(syntax_type_ns))
 		    .add_var("parse_state", make_namespace(parse_state_ns))
 		    .add_var("syntax", make_namespace(syntax_ns))
-		    .add_var("grammar", make_cni(make_grammar_var))
+		    .add_var("grammar", var::make_protect<type_t>(
+		        std::function<var()>([]() { return make_grammar_var(); }),
+		        std::type_index(typeid(grammar_t)), grammar_ext))
 		    .add_var("make_grammar_from", make_cni(make_grammar_from))
 		    .add_var("make_token", make_cni(make_token))
-		    .add_var("lexer_type", make_cni(make_lexer_var))
-		    .add_var("parser_type", make_cni(make_parser_var))
-		    .add_var("recovering_parser_type", make_cni(make_rparser_var))
-		    .add_var("generator", make_cni(make_generator_var))
+		    .add_var("make_lex_error", make_cni(make_lex_error))
+		    .add_var("lexer_type", var::make_protect<type_t>(
+		        std::function<var()>([]() { return make_lexer_var(); }),
+		        std::type_index(typeid(lexer_t)), lexer_type_ext))
+		    .add_var("parser_type", var::make_protect<type_t>(
+		        std::function<var()>([]() { return make_parser_var(); }),
+		        std::type_index(typeid(parser_t)), parser_type_ext))
+		    .add_var("partial_parser_type", var::make_protect<type_t>(
+		        std::function<var()>([]() { return make_pparser_var(); }),
+		        std::type_index(typeid(pparser_wrapper_t)), partial_parser_type_ext))
+		    .add_var("recovering_parser_type", var::make_protect<type_t>(
+		        std::function<var()>([]() { return make_rparser_var(); }),
+		        std::type_index(typeid(rparser_t)), recovering_parser_type_ext))
+		    .add_var("generator", var::make_protect<type_t>(
+		        std::function<var()>([]() { return make_generator_var(); }),
+		        std::type_index(typeid(generator_t)), generator_ext))
 		    .add_var("print_error", make_cni(print_error))
-		    .add_var("print_ast", make_cni(print_ast));
+		    .add_var("print_ast", make_cni(print_ast))
+		    .add_var("syntax_tree", var::make<tree_t>(std::make_shared<pg::syntax_tree>()))
+		    .add_var("token_type", var::make<token_t>(std::make_shared<pg::token_type>()))
+		    .add_var("lex_error", var::make_protect<type_t>(
+		        std::function<var()>([]() { return var::make<lexerr_t>(std::make_shared<pg::lex_error>()); }),
+		        std::type_index(typeid(lexerr_t)), lex_error_ext));
 
 		// syntax_impl type extensions
 		(*syntax_impl_ext)
@@ -582,14 +684,16 @@ namespace parsergen_cni {
 
 		// token_type extensions
 		(*token_type_ext)
-		    .add_var("pos", make_cni(token_pos))
-		    .add_var("type", make_cni(token_type_name))
-		    .add_var("data", make_cni(token_data));
+		    .add_var("pos", make_cni(token_pos, callable::types::member_visitor))
+		    .add_var("type", make_cni(token_type_name, callable::types::member_visitor))
+		    .add_var("data", make_cni(token_data, callable::types::member_visitor));
 
 		// lex_error extensions
 		(*lex_error_ext)
-		    .add_var("text", make_cni(lexerr_text))
-		    .add_var("pos", make_cni(lexerr_pos));
+		    .add_var("text", make_cni(lexerr_text, callable::types::member_visitor))
+		    .add_var("pos", make_cni(lexerr_pos, callable::types::member_visitor))
+		    .add_var("set_text", make_cni(lexerr_set_text))
+		    .add_var("set_pos", make_cni(lexerr_set_pos));
 
 		// syntax_tree extensions
 		(*syntax_tree_ext)
@@ -598,20 +702,19 @@ namespace parsergen_cni {
 
 		// parse_error extensions
 		(*parse_error_ext)
-		    .add_var("cursor", make_cni(perr_cursor))
-		    .add_var("text", make_cni(perr_text))
-		    .add_var("pos", make_cni(perr_pos));
+		    .add_var("cursor", make_cni(perr_cursor, callable::types::member_visitor))
+		    .add_var("text", make_cni(perr_text, callable::types::member_visitor))
+		    .add_var("pos", make_cni(perr_pos, callable::types::member_visitor));
 
 		// lexer_type extensions
 		(*lexer_type_ext)
 		    .add_var("run", make_cni(lexer_run))
-		    .add_var("error_log", make_cni(lexer_error_log));
+		    .add_var("get_error_log", make_cni(lexer_error_log));
 
 		// parser_type extensions
 		(*parser_type_ext)
 		    .add_var("init", make_cni(parser_init))
 		    .add_var("run", make_cni(parser_run))
-		    .add_var("run_grammar", make_cni(parser_run_grammar))
 		    .add_var("production", make_cni(parser_production))
 		    .add_var("get_log", make_cni(parser_get_log))
 		    .add_var("log", make_property_cni(parser_log));
@@ -622,25 +725,32 @@ namespace parsergen_cni {
 		    .add_var("parse_with_recovery", make_cni(rparser_parse_with_recovery))
 		    .add_var("get_all_errors", make_cni(rparser_get_all_errors));
 
+		// partial_parser_type extensions
+		(*partial_parser_type_ext)
+		    .add_var("run", make_cni(pparser_run))
+		    .add_var("production", make_cni(pparser_production))
+		    .add_var("get_log", make_cni(pparser_get_log))
+		    .add_var("log", make_property_cni(pparser_log))
+		    .add_var("set_eof_hook", make_cni(pparser_set_eof_hook))
+		    .add_var("append_token", make_cni(pparser_push_token))
+		    .add_var("push_tokens", make_cni(pparser_push_tokens));
+
 		// generator extensions
 		(*generator_ext)
-		    .add_var("add_grammar", make_cni(gen_add_grammar))
 		    .add_var("add_language", make_cni(gen_add_language))
 		    .add_var("from_string", make_cni(gen_from_string))
 		    .add_var("from_file", make_cni(gen_from_file))
-		    .add_var("ast", make_cni(gen_get_ast))
+		    .add_var("from_stream", make_cni(gen_from_stream))
+		    .add_var("get_ast", make_cni(gen_get_ast))
 		    .add_var("get_errors", make_cni(gen_get_errors))
 		    .add_var("get_lex_errors", make_cni(gen_get_lex_errors))
 		    .add_var("get_tokens", make_cni(gen_get_tokens))
+		    .add_var("get_code_buff", make_cni(gen_get_code_buff))
+		    .add_var("get_file_path", make_cni(gen_get_file_path))
 		    .add_var("lex_string", make_cni(gen_lex_string))
-		    .add_var("stop_on_error", make_variadic_cni(gen_stop_on_error))
 		    .add_var("set_stop_on_error", make_cni(gen_set_stop_on_error))
-		    .add_var("show_prompt", make_variadic_cni(gen_show_prompt))
 		    .add_var("set_show_prompt", make_cni(gen_set_show_prompt))
-		    .add_var("enable_log", make_variadic_cni(gen_enable_log))
-		    .add_var("set_enable_log", make_cni(gen_set_enable_log))
-		    .add_var("file_path", make_cni(gen_get_file_path))
-		    .add_var("code_buff", make_cni(gen_get_code_buff));
+		    .add_var("set_enable_log", make_cni(gen_set_enable_log));
 	}
 } // namespace parsergen_cni
 
@@ -654,6 +764,7 @@ void cs_extension_main(cs::name_space *ns)
 	cs_impl::get_ext<perr_t>();
 	cs_impl::get_ext<lexer_t>();
 	cs_impl::get_ext<parser_t>();
+	cs_impl::get_ext<pparser_wrapper_t>();
 	cs_impl::get_ext<rparser_t>();
 	cs_impl::get_ext<generator_t>();
 	parsergen_cni::init(ns);

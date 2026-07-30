@@ -38,21 +38,19 @@ void unicode_lexer_type::error(const std::string &str, std::array<int, 2> p)
 	lex_error err;
 	err.text = str;
 	err.pos = p;
-	--err.pos[0];
 	error_log.push_back(std::move(err));
 }
 
 void unicode_lexer_type::cursor_forward()
 {
+	char32_t ch = data[pos[2]];
 	++pos[2];
-	if (pos[2] != static_cast<int>(data.size())) {
-		if (data[pos[2]] == U'\n') {
-			++pos[1];
-			pos[0] = 0;
-		}
-		else {
-			++pos[0];
-		}
+	if (ch == U'\n') {
+		++pos[1];
+		pos[0] = 0;
+	}
+	else {
+		++pos[0];
 	}
 }
 
