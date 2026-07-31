@@ -1,4 +1,6 @@
-import parsergen_cxx as parsergen
+var parsergen = context.import(runtime.get_import_path(), "parsergen_cxx")
+
+context.import(runtime.get_import_path(), "ecs_parser")
 import ecs_parser
 
 var cxx_gram = parsergen.make_grammar_from(".*\\.(csp|csc|ecs|ecsx)", ecs_parser.get_lexical_patterns(false), ecs_parser.get_syntax(false))

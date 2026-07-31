@@ -1,6 +1,6 @@
-import parsergen_cxx as parsergen
+var parsergen = context.import(runtime.get_import_path(), "parsergen_cxx")
 
-constant syntax = parsergen.syntax
+var syntax = parsergen.syntax
 
 @begin
 var ecs_lex = {

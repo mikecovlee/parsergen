@@ -20,9 +20,14 @@
 
 package ecs_parser
 
-import parsergen
+var _pg_impl = "parsergen"
+try
+    _pg_impl = system.getenv("PARSERGEN_IMPL")
+catch e
+end
+var parsergen = context.import(runtime.get_import_path(), _pg_impl)
 
-constant syntax = parsergen.syntax
+var syntax = parsergen.syntax
 
 function get_lexical_patterns(strict)
     @begin
