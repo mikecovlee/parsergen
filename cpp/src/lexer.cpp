@@ -79,7 +79,8 @@ token_list_t lexer_type::run(const lexical_t &lexical, const std::string &text)
 	error_log.clear();
 	output.clear();
 	data = text;
-	pos = {0, 0, 0};
+	pos[0] = 0;
+	pos[2] = 0;
 	lexical_set.clear();
 	buff.clear();
 

@@ -43,6 +43,7 @@ using predict_cache_t = std::unordered_map<std::string, std::shared_ptr<bootset_
 class parser_type {
 protected:
 	std::deque<parse_stage> stack;
+	syntax_map_t syn_storage;
 	const syntax_map_t *syn = nullptr;
 	const token_list_t *lex = nullptr;
 

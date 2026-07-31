@@ -49,6 +49,11 @@ bool generator::priv_run(const std::string &lang)
 		return false;
 	auto &gram = it->second;
 
+	lexer_.reset();
+	unicode_lexer_.reset();
+	parser_.reset();
+	ast_.reset();
+
 	std::string coding;
 	auto cit = lang_codings.find(lang);
 	if (cit != lang_codings.end())
@@ -165,12 +170,24 @@ bool generator::from_file(const std::string &path)
 	std::ifstream ifs(path);
 	if (!ifs.good())
 		return false;
-	file_path = path;
 	for (auto &[lang, gram] : rules) {
 		if (regex_match(gram.ext, path)) {
 			std::string content((std::istreambuf_iterator<char>(ifs)),
 			                    std::istreambuf_iterator<char>());
-			return from_string(lang, content);
+			file_path = path;
+			input = content;
+			if (!input.empty() && input.back() != '\n')
+				input += '\n';
+			code_buff.clear();
+			std::istringstream stream(input);
+			std::string line;
+			while (std::getline(stream, line)) {
+				if (!line.empty() && line.back() == '\r')
+					line.pop_back();
+				code_buff.push_back(line);
+			}
+			code_buff.push_back("");
+			return priv_run(lang);
 		}
 	}
 	return false;

@@ -426,16 +426,16 @@ bool parser_type::expand_pending_ref(std::shared_ptr<bootset_type> &boot)
 		std::unordered_set<std::string> solved_ref;
 		for (auto &ref : boot->pending_ref) {
 			auto it = predict_cache.find(ref);
-			if (it != predict_cache.end()) {
-				auto &set = it->second;
-				if (!set->all_empty()) {
-					if (set->pending_ref.empty()) {
-						solved_ref.insert(ref);
-						pending_set.merge(*set);
-					}
-					else {
-						unsolved_ref = true;
-					}
+			if (it == predict_cache.end())
+				throw std::runtime_error("Undefined grammar reference: " + ref);
+			auto &set = it->second;
+			if (!set->all_empty()) {
+				if (set->pending_ref.empty()) {
+					solved_ref.insert(ref);
+					pending_set.merge(*set);
+				}
+				else {
+					unsolved_ref = true;
 				}
 			}
 		}
@@ -469,7 +469,8 @@ void parser_type::solve_pending_ref()
 void parser_type::init(const syntax_map_t &grammar)
 {
 	predict_cache.clear();
-	syn = &grammar;
+	syn_storage = grammar;
+	syn = &syn_storage;
 	for (auto &[name, seq] : *syn)
 		predict_cache[name] = prep_syntax(seq);
 	if (predict_cache.count("ignore"))
@@ -572,7 +573,7 @@ bool recovering_parser_type::parse_with_recovery(const token_list_t &lex_output)
 		lex = &lex_output;
 		push_stage("begin");
 		stack.front().cursor = start;
-		if (parser_type::match_syntax(syn->at("begin")) == parse_state::accept && eof())
+		if (parser_type::match_syntax(syn->at("begin")) == parse_state::accept && stack.size() == 1 && eof())
 			return true;
 		auto err = get_log(0);
 		if (!err.empty())

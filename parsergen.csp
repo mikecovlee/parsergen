@@ -134,6 +134,12 @@ class lexer_type
         end
     end
     function run(lexical, text)
+        error_log = new array
+        output = new array
+        lexical_set = new hash_set
+        buff = new string
+        pos[0] = 0
+        pos[2] = 0
         data = text
         while pos[2] != data.size
             var ch = data[pos[2]]
@@ -236,6 +242,12 @@ class unicode_lexer_type
         end
     end
     function run(lexical, text)
+        error_log = new array
+        output = new array
+        lexical_set = new hash_set
+        buff = new unicode.wstring
+        pos[0] = 0
+        pos[2] = 0
         data = cvt.local2wide(text)
         while pos[2] != data.size
             var ch = data.at(pos[2])
@@ -768,6 +780,8 @@ class parser_type
                             unsolved_ref = true
                         end
                     end
+                else
+                    throw runtime.exception("Undefined grammar reference: " + ref)
                 end
             end
             boot.merge(pending_set)
@@ -905,7 +919,7 @@ class recovering_parser_type extends parser_type
             this.lex = lex_output
             this.push_stage("begin")
             this.stack.front.cursor = start
-            if this.match_syntax(this.syn.begin) == parse_state.accept && this.eof()
+            if this.match_syntax(this.syn.begin) == parse_state.accept && this.stack.size == 1 && this.eof()
                 return true
             end
             var err = this.get_log(0)
@@ -1011,6 +1025,10 @@ class generator
     var enable_log = false
     var file_path = "<FILE>"
     function priv_run(lang)
+        ast = null
+        token_buff = null
+        parser = null
+        lexer = null
         if rules.exist(lang)
             var cvt = unicode_cvt
             if lang_cvts.exist(lang)
