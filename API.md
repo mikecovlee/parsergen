@@ -76,7 +76,7 @@ parse_state.{accept, reject, eof}
 
 | 字段/方法 | 等价统一方法 | 状态 |
 |------|---|---|
-| `add_grammar(lang, gram)` | `add_language(lang, "ascii", gram)` | 保留 |
+| `add_grammar(lang, gram)` | 无（gram.lex 需预编译 regex） | 保留（废弃，推荐用 `add_language`） |
 | `gen.ast` | `get_ast()` | 保留 |
 | `gen.code_buff` | `get_code_buff()` | 保留 |
 | `gen.file_path` | `get_file_path()` | 保留 |
