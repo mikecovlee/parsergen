@@ -247,10 +247,17 @@ jobs:
           CS_HOME="${CS_HOME//\\//}"
           echo "cs_home=${CS_HOME}" >> "$GITHUB_OUTPUT"
 
-      - name: Add MinGW to PATH
+      - name: Setup MSYS2
         if: runner.os == 'Windows'
-        shell: bash
-        run: echo "C:/mingw64/bin" >> "$GITHUB_PATH"
+        id: msys2
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: UCRT64
+          update: true
+          install: >-
+            mingw-w64-ucrt-x86_64-toolchain
+            mingw-w64-ucrt-x86_64-cmake
+            mingw-w64-ucrt-x86_64-make
 
       - name: Build C++ library and CNI (Unix)
         if: runner.os != 'Windows'
@@ -265,12 +272,15 @@ jobs:
 
       - name: Build C++ library and CNI (Windows)
         if: runner.os == 'Windows'
-        shell: cmd
+        shell: bash
+        env:
+          MSYS2_LOCATION: ${{ steps.msys2.outputs.msys2-location }}
         run: |
-          set CS_DEV_PATH=${{ steps.sdk.outputs.cs_home }}/
-          if not exist cmake-build\mingw-w64 mkdir cmake-build\mingw-w64
-          cd cmake-build\mingw-w64
-          cmake -G "MinGW Makefiles" ..\..\cpp
+          export PATH="${{ steps.msys2.outputs.msys2-location }}/ucrt64/bin:${PATH}"
+          export CS_DEV_PATH="$(cygpath -u "${{ steps.sdk.outputs.cs_home }}")/"
+          mkdir -p cmake-build/mingw-w64
+          cd cmake-build/mingw-w64
+          cmake -G "MinGW Makefiles" ../../cpp
           cmake --build . --parallel 4
 
       - name: Run C++ unit tests (Unix)
