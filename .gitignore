@@ -10,3 +10,6 @@ misc/test_recovery.csc
 unit_tests/_test_temp.*
 cpp/build/
 cpp/test/cxx_import/parsergen_cxx.cse
+cpp/test/big.ecs
+cpp/test/med.ecs
+cpp/test/large.ecs
