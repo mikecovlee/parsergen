@@ -76,17 +76,17 @@ parse_state.{accept, reject, eof}
 
 | 字段/方法 | 等价统一方法 | 状态 |
 |------|---|---|
-| `add_grammar(lang, gram)` | 无（gram.lex 需预编译 regex） | 保留（废弃，推荐用 `add_language`） |
-| `gen.ast` | `get_ast()` | 保留 |
-| `gen.code_buff` | `get_code_buff()` | 保留 |
-| `gen.file_path` | `get_file_path()` | 保留 |
-| `gen.token_buff` | `get_tokens()` | 保留 |
-| `gen.show_prompt = v` | `set_show_prompt(v)` | 保留 |
-| `gen.stop_on_error = v` | `set_stop_on_error(v)` | 保留 |
-| `gen.enable_log = v` | `set_enable_log(v)` | 保留 |
-| `gen.unicode_cvt = cvt` | `add_language(lang, coding, gram)` | 保留（废弃） |
-| `gen.lexer.error_log` | `get_lex_errors()` | 保留 |
-| `gen.lexer` / `gen.parser` | 无（内部状态） | 保留 |
+| `add_grammar(lang, gram)` | 无（gram.lex 需预编译 regex） | 废弃（推荐用 `add_language`） |
+| `gen.ast` | `get_ast()` | 废弃（仅 CovScript 字段访问） |
+| `gen.code_buff` | `get_code_buff()` | 废弃（仅 CovScript 字段访问） |
+| `gen.file_path` | `get_file_path()` | 废弃（仅 CovScript 字段访问） |
+| `gen.token_buff` | `get_tokens()` | 废弃（仅 CovScript 字段访问） |
+| `gen.show_prompt = v` | `set_show_prompt(v)` | 废弃（仅 CovScript 赋值） |
+| `gen.stop_on_error = v` | `set_stop_on_error(v)` | 废弃（仅 CovScript 赋值） |
+| `gen.enable_log = v` | `set_enable_log(v)` | 废弃（仅 CovScript 赋值） |
+| `gen.unicode_cvt = cvt` | `add_language(lang, coding, gram)` | 废弃 |
+| `gen.lexer.error_log` | `get_lex_errors()` | 废弃（C++ 不暴露内部 worker） |
+| `gen.lexer` / `gen.parser` | 无（内部状态） | 废弃（C++ 不暴露内部 worker） |
 
 ## partial_parser
 
@@ -105,9 +105,9 @@ parse_state.{accept, reject, eof}
 
 | 字段 | 等价统一方法 | 状态 |
 |------|---|---|
-| `parser.on_eof_hook = fn` | `set_eof_hook(fn)` | 保留 |
-| `parser.lex.push_back(tok)` | `append_token(tok)` | 保留 |
-| `parser.log = v` | 无（CXX 用 `parser.log(v)`） | 保留 |
+| `parser.on_eof_hook = fn` | `set_eof_hook(fn)` | 废弃（仅 CovScript 赋值） |
+| `parser.lex.push_back(tok)` | `append_token(tok)` | 废弃（C++ 不暴露内部 buffer） |
+| `parser.log = v` | `parser.log(v)` | 废弃（仅 CovScript 赋值） |
 
 ## recovering_parser
 
@@ -132,7 +132,7 @@ parse_state.{accept, reject, eof}
 
 | 字段 | 状态 |
 |------|---|
-| `parser.log = v` | 保留（CXX 用 `parser.log(v)`） |
+| `parser.log = v` | 废弃（仅 CovScript 赋值，C++ 用 `parser.log(v)`） |
 
 ## lexer_type
 
@@ -147,10 +147,10 @@ parse_state.{accept, reject, eof}
 
 | 字段 | 等价统一方法 | 状态 |
 |------|---|---|
-| `lexer.error_log` | `get_error_log()` | 保留 |
-| `lexer.pos[1] = n` | 用 `gen.lex_string(lang, text, start_line)` | 保留 |
-| `lexer.output` | 用 `run()` 返回值 | 保留 |
-| `unicode_lexer_type` | 由 `add_language` coding 内部处理 | 保留（废弃） |
+| `lexer.error_log` | `get_error_log()` | 废弃（仅 CovScript 字段访问） |
+| `lexer.pos[1] = n` | 用 `gen.lex_string(lang, text, start_line)` | 废弃（C++ 不暴露内部状态） |
+| `lexer.output` | 用 `run()` 返回值 | 废弃（仅 CovScript 字段访问） |
+| `unicode_lexer_type` | 由 `add_language` coding 内部处理 | 废弃 |
 
 ## lex_error
 
@@ -167,8 +167,8 @@ parse_state.{accept, reject, eof}
 
 | 字段 | 等价统一方法 | 状态 |
 |------|---|---|
-| `err.text = v` | `set_text(v)` | 保留 |
-| `err.pos = v` | `set_pos(v)` | 保留 |
+| `err.text = v` | `set_text(v)` | 废弃（仅 CovScript 赋值） |
+| `err.pos = v` | `set_pos(v)` | 废弃（仅 CovScript 赋值） |
 
 ## grammar 对象
 
@@ -183,7 +183,7 @@ parse_state.{accept, reject, eof}
 
 | 写法 | 状态 |
 |------|---|
-| `new parsergen.grammar` + 字段赋值 | 保留 |
+| `new parsergen.grammar` + 字段赋值 | 废弃（推荐用 `make_grammar_from`） |
 
 ## AST 节点访问（两边语法一致）
 
