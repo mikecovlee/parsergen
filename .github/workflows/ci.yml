@@ -267,7 +267,7 @@ jobs:
         if: runner.os == 'Windows'
         shell: cmd
         run: |
-          set CS_DEV_PATH=${{ steps.sdk.outputs.cs_home }}\
+          set CS_DEV_PATH=${{ steps.sdk.outputs.cs_home }}/
           if not exist cmake-build\mingw-w64 mkdir cmake-build\mingw-w64
           cd cmake-build\mingw-w64
           cmake -G "MinGW Makefiles" ..\..\cpp

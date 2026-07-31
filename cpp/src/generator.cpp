@@ -133,7 +133,7 @@ bool generator::priv_run(const std::string &lang)
 
 bool generator::from_string(const std::string &lang, const std::string &str)
 {
-	file_path.clear();
+	file_path = "<FILE>";
 	input = str;
 	code_buff.clear();
 	std::istringstream stream(input);
@@ -149,7 +149,7 @@ bool generator::from_string(const std::string &lang, const std::string &str)
 
 bool generator::from_stream(const std::string &lang, std::istream &stream)
 {
-	file_path.clear();
+	file_path = "<FILE>";
 	input.clear();
 	code_buff.clear();
 	std::string line;

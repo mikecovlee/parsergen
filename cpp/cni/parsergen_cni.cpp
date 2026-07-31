@@ -422,8 +422,6 @@ namespace parsergen_cni {
 		w->token_buff.clear();
 		for (auto &t : tokens)
 			w->token_buff.push_back(*t.const_val<token_t>());
-		constexpr std::size_t eof_hook_reserve = 10000;
-		w->token_buff.reserve(w->token_buff.size() + eof_hook_reserve);
 
 		if (w->has_hook) {
 			std::weak_ptr<partial_parser_wrapper> weak_w = w;
