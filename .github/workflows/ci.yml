@@ -133,12 +133,8 @@ jobs:
           if [ "${{ runner.os }}" != "Windows" ]; then
             chmod -R +x "$COVSCRIPT_HOME/bin/"
           fi
-          # Initialize cspkg
+          # Install remote dependencies (regex, etc.)
           cspkg install --import --yes
-          # Build and install local CovScript packages (not the C++ extension)
-          cspkg build csbuild/parsergen.json --install --yes
-          cspkg build csbuild/parsergen_debug.json --install --yes
-          # Fix dependencies
           cspkg install --fix --yes
           echo ""
           echo "=== Installed packages ==="
