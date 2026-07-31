@@ -151,10 +151,10 @@ class lexer_type
                     end
                 end
                 if !lexical_set.empty()
-                    wpos = pos
+                    wpos = {pos[0], pos[1]}
                     buff = nbuff
                 else
-                    error("Unknown character \'" + nbuff + "\'", pos)
+                    error("Unknown character \'" + nbuff + "\'", {pos[0], pos[1]})
                 end
                 cursor_forward()
             else
@@ -259,10 +259,10 @@ class unicode_lexer_type
                     end
                 end
                 if !lexical_set.empty()
-                    wpos = pos
+                    wpos = {pos[0], pos[1]}
                     buff = nbuff
                 else
-                    error("Unknown character \'" + cvt.wide2local(nbuff) + "\'", pos)
+                    error("Unknown character \'" + cvt.wide2local(nbuff) + "\'", {pos[0], pos[1]})
                 end
                 cursor_forward()
             else

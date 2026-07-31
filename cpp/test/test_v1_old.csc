@@ -2,7 +2,7 @@ import parsergen, regex
 import ecs_parser, ecs_generator
 
 var gen = new parsergen.generator
-gen.add_grammar("ecs-lang", ecs_parser.grammar)
+gen.add_language("ecs-lang", "ascii", ecs_parser.grammar)
 gen.show_prompt = false
 gen.from_file("tests/test_cases/ecs/v1.ecs")
 if gen.ast == null
