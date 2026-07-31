@@ -40,7 +40,7 @@ std::shared_ptr<lexer_type::compiled_regex> lexer_type::get_regex(const std::str
 	return reg;
 }
 
-void lexer_type::error(const std::string &str, std::array<int, 2> p)
+void lexer_type::error(const std::string &str, std::array<std::size_t, 2> p)
 {
 	lex_error err;
 	err.text = str;
@@ -88,7 +88,7 @@ token_list_t lexer_type::run(const lexical_t &lexical, const std::string &text)
 	for (auto &[name, pattern] : lexical)
 		compiled[name] = get_regex(pattern);
 
-	while (pos[2] != static_cast<int>(data.size())) {
+	while (pos[2] != data.size()) {
 		char ch = data[pos[2]];
 		if (lexical_set.empty()) {
 			std::string nbuff(1, ch);

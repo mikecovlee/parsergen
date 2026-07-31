@@ -280,8 +280,8 @@ namespace parsergen_cni {
 	token_t make_token(const array &pos, const string &type, const string &data)
 	{
 		auto t = std::make_shared<pg::token_type>();
-		t->pos = {static_cast<int>(pos.at(0).const_val<numeric>().as_integer()),
-		          static_cast<int>(pos.at(1).const_val<numeric>().as_integer())};
+		t->pos = {static_cast<std::size_t>(pos.at(0).const_val<numeric>().as_integer()),
+		          static_cast<std::size_t>(pos.at(1).const_val<numeric>().as_integer())};
 		t->type = type;
 		t->data = data;
 		return t;
@@ -482,8 +482,8 @@ namespace parsergen_cni {
 	{
 		auto e = std::make_shared<pg::lex_error>();
 		e->text = text;
-		e->pos = {static_cast<int>(pos.at(0).const_val<numeric>().as_integer()),
-		          static_cast<int>(pos.at(1).const_val<numeric>().as_integer())};
+		e->pos = {static_cast<std::size_t>(pos.at(0).const_val<numeric>().as_integer()),
+		          static_cast<std::size_t>(pos.at(1).const_val<numeric>().as_integer())};
 		return e;
 	}
 
@@ -568,8 +568,8 @@ namespace parsergen_cni {
 	void lexerr_set_text(lexerr_t &e, const string &text) { e->text = text; }
 	void lexerr_set_pos(lexerr_t &e, const array &pos)
 	{
-		e->pos = {static_cast<int>(pos.at(0).const_val<numeric>().as_integer()),
-		          static_cast<int>(pos.at(1).const_val<numeric>().as_integer())};
+		e->pos = {static_cast<std::size_t>(pos.at(0).const_val<numeric>().as_integer()),
+		          static_cast<std::size_t>(pos.at(1).const_val<numeric>().as_integer())};
 	}
 
 	// ---- utility functions ----

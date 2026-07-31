@@ -28,7 +28,7 @@ struct parse_stage {
 struct parse_error {
 	int cursor = 0;
 	std::string text;
-	std::array<int, 2> pos = {0, 0};
+	std::array<std::size_t, 2> pos = {0, 0};
 };
 
 struct parse_memo {
@@ -66,7 +66,7 @@ protected:
 	bool eof() const { return stack.front().cursor >= static_cast<int>(lex->size()); }
 	const token_type &peek() const { return lex->at(stack.front().cursor); }
 
-	void error(const std::string &str, std::array<int, 2> pos);
+	void error(const std::string &str, std::array<std::size_t, 2> pos);
 	void do_accept();
 	void do_merge();
 

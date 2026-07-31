@@ -35,7 +35,7 @@ void parser_type::push_token()
 	++top.cursor;
 }
 
-void parser_type::error(const std::string &str, std::array<int, 2> p)
+void parser_type::error(const std::string &str, std::array<std::size_t, 2> p)
 {
 	parse_error err;
 	err.cursor = stack.front().cursor;

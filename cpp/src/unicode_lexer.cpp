@@ -33,7 +33,7 @@ unicode_lexer_type::get_wregex(const std::string &pattern)
 	return reg;
 }
 
-void unicode_lexer_type::error(const std::string &str, std::array<int, 2> p)
+void unicode_lexer_type::error(const std::string &str, std::array<std::size_t, 2> p)
 {
 	lex_error err;
 	err.text = str;
@@ -94,7 +94,7 @@ token_list_t unicode_lexer_type::run(const lexical_t &lexical, const std::string
 	for (auto &[name, pattern] : lexical)
 		compiled[name] = get_wregex(pattern);
 
-	while (pos[2] != static_cast<int>(data.size())) {
+	while (pos[2] != data.size()) {
 		char32_t ch = data[pos[2]];
 		if (lexical_set.empty()) {
 			std::u32string nbuff(1, ch);

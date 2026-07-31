@@ -22,9 +22,9 @@ void print_error(const std::string &file, const std::vector<std::string> &code,
 {
 	for (auto &it : err) {
 		std::cout << "File \"" << file << "\", line " << (it.pos[1] + 1) << ": " << it.text << "\n";
-		if (it.pos[1] < static_cast<int>(code.size())) {
+		if (it.pos[1] < code.size()) {
 			std::cout << "> " << code[it.pos[1]] << "\n";
-			for (int i = 0; i < it.pos[0] + 2; ++i)
+			for (std::size_t i = 0; i < it.pos[0] + 2; ++i)
 				std::cout << ' ';
 			std::cout << "^\n\n";
 		}
