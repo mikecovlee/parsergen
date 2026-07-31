@@ -5,14 +5,16 @@
 #   2. Configures cspkg to use the bundled package repository
 #   3. Installs remote dependencies (regex) and builds parsergen from local source
 #   4. Runs unit tests and integration tests
+#   5. Builds the C++ implementation (libparsergen + parsergen_cxx.cse)
+#   6. Runs C++ unit tests and drop-in replace tests
 
 name: CI
 
 on:
   push:
-    branches: [master, main]
+    branches: [master, main, cxx_impl]
   pull_request:
-    branches: [master, main]
+    branches: [master, main, cxx_impl]
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
@@ -199,3 +201,109 @@ jobs:
           fi
           echo ""
           echo "=== All integration tests passed ==="
+
+  cxx:
+    name: "C++ / ${{ matrix.os }}"
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, macos-15, windows-2022]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          submodules: recursive
+
+      - name: Set platform identifiers
+        id: platform
+        shell: bash
+        run: |
+          case "${{ runner.os }}" in
+            Linux)   echo "os=ubuntu" >> "$GITHUB_OUTPUT"
+                     echo "arch=x86_64" >> "$GITHUB_OUTPUT" ;;
+            macOS)   echo "os=macos" >> "$GITHUB_OUTPUT"
+                     echo "arch=arm64" >> "$GITHUB_OUTPUT" ;;
+            Windows) echo "os=windows" >> "$GITHUB_OUTPUT"
+                     echo "arch=x86_64" >> "$GITHUB_OUTPUT" ;;
+          esac
+
+      - name: Download CovScript SDK
+        id: sdk
+        shell: bash
+        run: |
+          OS="${{ steps.platform.outputs.os }}"
+          ARCH="${{ steps.platform.outputs.arch }}"
+          BASE="https://github.com/covscript/csbuild/releases/download/${OS}-schedule"
+          COV="covscript-${OS}-${ARCH}-nightly.7z"
+
+          echo "Downloading ${COV}..."
+          curl -fsSL -o covscript.7z "${BASE}/${COV}"
+          7z x covscript.7z -y
+          mv build covscript-home
+
+          CS_HOME="${{ github.workspace }}/covscript-home"
+          CS_HOME="${CS_HOME//\\//}"
+          echo "cs_home=${CS_HOME}" >> "$GITHUB_OUTPUT"
+
+      - name: Add MinGW to PATH
+        if: runner.os == 'Windows'
+        shell: bash
+        run: echo "C:/mingw64/bin" >> "$GITHUB_PATH"
+
+      - name: Build C++ library and CNI (Unix)
+        if: runner.os != 'Windows'
+        shell: bash
+        env:
+          CS_DEV_PATH: ${{ steps.sdk.outputs.cs_home }}/
+        run: |
+          mkdir -p cmake-build/unix
+          cd cmake-build/unix
+          cmake -G "Unix Makefiles" ../../cpp
+          cmake --build . --parallel 4
+
+      - name: Build C++ library and CNI (Windows)
+        if: runner.os == 'Windows'
+        shell: cmd
+        run: |
+          set CS_DEV_PATH=${{ steps.sdk.outputs.cs_home }}\
+          if not exist cmake-build\mingw-w64 mkdir cmake-build\mingw-w64
+          cd cmake-build\mingw-w64
+          cmake -G "MinGW Makefiles" ..\..\cpp
+          cmake --build . --parallel 4
+
+      - name: Run C++ unit tests (Unix)
+        if: runner.os != 'Windows'
+        shell: bash
+        run: |
+          ./cmake-build/unix/parsergen_test
+
+      - name: Run C++ unit tests (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          & cmake-build\mingw-w64\parsergen_test.exe
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Run drop-in replace tests (Unix)
+        if: runner.os != 'Windows'
+        shell: bash
+        run: |
+          CS="${{ steps.sdk.outputs.cs_home }}/bin/cs"
+          chmod +x "$CS"
+          mkdir -p cpp/test/cxx_import
+          cp cmake-build/unix/parsergen_cxx.cse cpp/test/cxx_import/
+          cp tests/ecs_parser.csp cpp/test/cxx_import/
+          "$CS" --import-path cpp/test/cxx_import cpp/test/test_dropin_all.csc
+
+      - name: Run drop-in replace tests (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $cs = "${{ steps.sdk.outputs.cs_home }}\bin\cs.exe"
+          New-Item -ItemType Directory -Force -Path cpp\test\cxx_import | Out-Null
+          Copy-Item cmake-build\mingw-w64\parsergen_cxx.cse cpp\test\cxx_import\
+          Copy-Item tests\ecs_parser.csp cpp\test\cxx_import\
+          & $cs --import-path cpp\test\cxx_import cpp\test\test_dropin_all.csc
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
