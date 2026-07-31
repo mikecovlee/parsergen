@@ -135,8 +135,6 @@ bool generator::from_string(const std::string &lang, const std::string &str)
 {
 	file_path.clear();
 	input = str;
-	if (!input.empty() && input.back() != '\n')
-		input += '\n';
 	code_buff.clear();
 	std::istringstream stream(input);
 	std::string line;
@@ -158,8 +156,9 @@ bool generator::from_stream(const std::string &lang, std::istream &stream)
 	while (std::getline(stream, line)) {
 		if (!line.empty() && line.back() == '\r')
 			line.pop_back();
-		code_buff.push_back(line);
 		input += line + "\n";
+		std::replace(line.begin(), line.end(), '\t', ' ');
+		code_buff.push_back(line);
 	}
 	code_buff.push_back("");
 	return priv_run(lang);
@@ -184,6 +183,7 @@ bool generator::from_file(const std::string &path)
 			while (std::getline(stream, line)) {
 				if (!line.empty() && line.back() == '\r')
 					line.pop_back();
+				std::replace(line.begin(), line.end(), '\t', ' ');
 				code_buff.push_back(line);
 			}
 			code_buff.push_back("");

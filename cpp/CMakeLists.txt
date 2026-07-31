@@ -51,7 +51,9 @@ if(DEFINED ENV{CS_DEV_PATH})
 
     add_library(parsergen_cni SHARED cni/parsergen_cni.cpp)
     target_link_libraries(parsergen_cni parsergen covscript)
-    target_link_options(parsergen_cni PRIVATE -Wl,--export-all-symbols)
+    if(WIN32)
+        target_link_options(parsergen_cni PRIVATE -Wl,--export-all-symbols)
+    endif()
     set_target_properties(parsergen_cni PROPERTIES
         OUTPUT_NAME parsergen_cxx PREFIX "" SUFFIX ".cse")
 endif()

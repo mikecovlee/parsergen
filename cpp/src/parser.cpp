@@ -488,7 +488,9 @@ bool parser_type::parse(const token_list_t &lex_output)
 	ign_cache.clear();
 	lex = &lex_output;
 	push_stage("begin");
-	return match_syntax(syn->at("begin")) == parse_state::accept && stack.size() == 1 && eof();
+	bool result = match_syntax(syn->at("begin")) == parse_state::accept && stack.size() == 1 && eof();
+	lex = nullptr;
+	return result;
 }
 
 bool parser_type::run(const syntax_map_t &grammar, const token_list_t &lex_output)
@@ -573,8 +575,10 @@ bool recovering_parser_type::parse_with_recovery(const token_list_t &lex_output)
 		lex = &lex_output;
 		push_stage("begin");
 		stack.front().cursor = start;
-		if (parser_type::match_syntax(syn->at("begin")) == parse_state::accept && stack.size() == 1 && eof())
+		if (parser_type::match_syntax(syn->at("begin")) == parse_state::accept && stack.size() == 1 && eof()) {
+			lex = nullptr;
 			return true;
+		}
 		auto err = get_log(0);
 		if (!err.empty())
 			all_errors.push_back(err[0]);
@@ -584,6 +588,7 @@ bool recovering_parser_type::parse_with_recovery(const token_list_t &lex_output)
 		start = next;
 		++retries;
 	}
+	lex = nullptr;
 	return all_errors.empty();
 }
 

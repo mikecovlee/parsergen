@@ -12,9 +12,9 @@ name: CI
 
 on:
   push:
-    branches: [master, main, cxx_impl]
+    branches: [master, main]
   pull_request:
-    branches: [master, main, cxx_impl]
+    branches: [master, main]
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
@@ -294,7 +294,6 @@ jobs:
           chmod +x "$CS"
           mkdir -p cpp/test/cxx_import
           cp cmake-build/unix/parsergen_cxx.cse cpp/test/cxx_import/
-          cp tests/ecs_parser.csp cpp/test/cxx_import/
           "$CS" --import-path cpp/test/cxx_import cpp/test/test_dropin_all.csc
 
       - name: Run drop-in replace tests (Windows)
@@ -304,6 +303,5 @@ jobs:
           $cs = "${{ steps.sdk.outputs.cs_home }}\bin\cs.exe"
           New-Item -ItemType Directory -Force -Path cpp\test\cxx_import | Out-Null
           Copy-Item cmake-build\mingw-w64\parsergen_cxx.cse cpp\test\cxx_import\
-          Copy-Item tests\ecs_parser.csp cpp\test\cxx_import\
           & $cs --import-path cpp\test\cxx_import cpp\test\test_dropin_all.csc
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
