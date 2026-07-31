@@ -7,17 +7,17 @@ C++ 库 `libparsergen` 的原生接口。命名空间 `pg`。
 ```cpp
 // token.hpp
 struct token_type {
-    std::array<int, 2> pos = {0, 0};  // [col, line]
+    std::array<std::size_t, 2> pos = {0, 0};  // [col, line]
     std::string type;
     std::string data;
 };
 
 struct lex_error {
     std::string text;
-    std::array<int, 2> pos = {0, 0};
+    std::array<std::size_t, 2> pos = {0, 0};
 };
 
-token_type make_token(std::array<int, 2> pos, const std::string &type, const std::string &data);
+token_type make_token(std::array<std::size_t, 2> pos, const std::string &type, const std::string &data);
 
 // ast.hpp
 using ast_node = std::variant<token_type, std::shared_ptr<syntax_tree>>;
@@ -62,7 +62,7 @@ using predict_cache_t = std::unordered_map<std::string, std::shared_ptr<bootset_
 struct parse_error {
     int cursor = 0;
     std::string text;
-    std::array<int, 2> pos = {0, 0};
+    std::array<std::size_t, 2> pos = {0, 0};
 };
 
 struct parse_stage {
@@ -97,11 +97,11 @@ namespace pg::syntax {
 ```cpp
 class pg::lexer_type {
 public:
-    std::array<int, 3> pos = {0, 0, 0};   // [col, line, cursor]
+    std::array<std::size_t, 3> pos = {0, 0, 0};   // [col, line, cursor]
     std::vector<lex_error> error_log;
     token_list_t output;
 
-    void error(const std::string &str, std::array<int, 2> p);
+    void error(const std::string &str, std::array<std::size_t, 2> p);
     token_list_t run(const lexical_t &lexical, const std::string &text);
 
 private:
@@ -109,7 +109,7 @@ private:
     std::unordered_set<std::string> lexical_set;
     std::string buff;
     std::string data;
-    std::array<int, 2> wpos = {0, 0};
+    std::array<std::size_t, 2> wpos = {0, 0};
     std::unordered_map<std::string, std::shared_ptr<compiled_regex>> regex_cache;
 
     std::shared_ptr<compiled_regex> get_regex(const std::string &pattern);
@@ -122,13 +122,13 @@ private:
 ```cpp
 class pg::unicode_lexer_type {
 public:
-    std::array<int, 3> pos = {0, 0, 0};
+    std::array<std::size_t, 3> pos = {0, 0, 0};
     std::vector<lex_error> error_log;
     token_list_t output;
 
     explicit unicode_lexer_type(std::shared_ptr<codecvt::charset> c);
 
-    void error(const std::string &str, std::array<int, 2> p);
+    void error(const std::string &str, std::array<std::size_t, 2> p);
     token_list_t run(const lexical_t &lexical, const std::string &text);
 
 private:
@@ -136,7 +136,7 @@ private:
     std::unordered_set<std::string> lexical_set;
     std::u32string buff;
     std::u32string data;
-    std::array<int, 2> wpos = {0, 0};
+    std::array<std::size_t, 2> wpos = {0, 0};
     std::unordered_map<std::string, std::shared_ptr<compiled_wregex>> regex_cache;
 
     std::shared_ptr<compiled_wregex> get_wregex(const std::string &pattern);
@@ -204,7 +204,7 @@ protected:
     bool eof() const;
     const token_type &peek() const;
 
-    void error(const std::string &str, std::array<int, 2> pos);
+    void error(const std::string &str, std::array<std::size_t, 2> pos);
     void do_accept();
     void do_merge();
 
