@@ -11,6 +11,8 @@ unit_tests/_test_temp.*
 cpp/build/
 cmake-build/
 cpp/test/cxx_import/parsergen_cxx.cse
+cpp/test/cxx_import/parsergen.cse
+cpp/test/cxx_import/ecs_parser.csp
 cpp/test/big.ecs
 cpp/test/med.ecs
 cpp/test/large.ecs

@@ -1,4 +1,6 @@
 import parsergen_cxx as parsergen
+
+context.import(runtime.get_import_path(), "ecs_parser")
 import ecs_parser
 
 constant syntax = parsergen.syntax
@@ -233,7 +235,7 @@ gen.add_language("json", "ascii", parsergen.make_grammar_from(".*\\.json", json_
 gen.add_language("ecs-lang", "ascii", ecs_parser.grammar)
 
 # === Run all test cases ===
-var base = "tests/test_cases/"
+var base = "../../tests/test_cases/"
 
 check("tiny/t1.tny", gen.from_file(base + "tiny/t1.tny"))
 check("tiny/t2.tny", gen.from_file(base + "tiny/t2.tny"))

@@ -1,11 +1,13 @@
 import parsergen_cxx as parsergen
+
+context.import(runtime.get_import_path(), "ecs_parser")
 import ecs_parser
 
 var gen = new parsergen.generator
 gen.set_show_prompt(false)
 gen.add_language("ecs-lang", "ascii", ecs_parser.grammar)
 
-if gen.from_file("tests/test_cases/ecs/v3.ecs")
+if gen.from_file("../../tests/test_cases/ecs/v3.ecs")
     var ast = gen.get_ast()
     foreach it in ast.nodes
         if typeid it == typeid parsergen.syntax_tree
