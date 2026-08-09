@@ -2,7 +2,6 @@
 REM Format all C++ source files in the parsergen C++ project.
 REM Requires astyle:  https://astyle.sourceforge.net/
 REM Options:  -A4  attach braces to the end of lines (Linux/Java style)
-REM            -N   do not indent namespaces
 REM            -t   use tabs for indentation
 REM            -n   do not create .orig backup files
 
@@ -22,7 +21,11 @@ for /r "%PROJECT_ROOT%" %%f in (*.cpp *.hpp) do (
     set "filepath=%%f"
     if "!filepath:covscript-regex=!"=="!filepath!" (
         if "!filepath:utfcpp=!"=="!filepath!" (
-            astyle -A4 -N -t -n "%%f"
+            if "!filepath:build=!"=="!filepath!" (
+                if "!filepath:cni=!"=="!filepath!" (
+                    astyle -A4 -t -n "%%f"
+                )
+            )
         )
     )
 )

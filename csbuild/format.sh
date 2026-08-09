@@ -2,7 +2,6 @@
 # Format all C++ source files in the parsergen C++ project.
 # Requires astyle:  https://astyle.sourceforge.net/
 # Options:  -A4  attach braces to the end of lines (Linux/Java style)
-#           -N   do not indent namespaces
 #           -t   use tabs for indentation
 #           -n   do not create .orig backup files
 
@@ -21,7 +20,9 @@ echo "Formatting C++ sources..."
 find "$PROJECT_ROOT" \
     -name covscript-regex -prune -o \
     -name utfcpp -prune -o \
+    -name build -prune -o \
+    -name cni -prune -o \
     \( -name '*.cpp' -o -name '*.hpp' \) -print0 \
-    | xargs -0 astyle -A4 -N -t -n
+    | xargs -0 astyle -A4 -t -n
 
 echo "Done."

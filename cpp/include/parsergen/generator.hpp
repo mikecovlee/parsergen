@@ -38,10 +38,22 @@ public:
 	token_list_t lex_string(const std::string &lang, const std::string &text, int start_line);
 	std::vector<lex_error> get_lex_errors() const;
 
-	std::shared_ptr<syntax_tree> ast() const { return ast_; }
-	const token_list_t &tokens() const { return token_buff; }
-	const std::vector<std::string> &code() const { return code_buff; }
-	const std::string &path() const { return file_path; }
+	std::shared_ptr<syntax_tree> ast() const
+	{
+		return ast_;
+	}
+	const token_list_t &tokens() const
+	{
+		return token_buff;
+	}
+	const std::vector<std::string> &code() const
+	{
+		return code_buff;
+	}
+	const std::string &path() const
+	{
+		return file_path;
+	}
 
 	std::vector<parse_error> get_errors();
 };

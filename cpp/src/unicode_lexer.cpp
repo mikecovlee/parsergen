@@ -10,7 +10,7 @@ struct pg::unicode_lexer_type::compiled_wregex {
 	pcre2_regex_t reg;
 
 	explicit compiled_wregex(const std::u32string &pattern)
-	    : reg(std::make_shared<pcre2_regex>(pattern, true))
+		: reg(std::make_shared<pcre2_regex>(pattern, true))
 	{}
 
 	bool match(const std::u32string &text)
@@ -108,7 +108,7 @@ token_list_t unicode_lexer_type::run(const lexical_t &lexical, const std::string
 			}
 			else {
 				error("Unknown character '" + cvt->wide2local(std::u32string(1, ch)) + "'",
-				      {pos[0], pos[1]});
+				{pos[0], pos[1]});
 			}
 			cursor_forward();
 		}

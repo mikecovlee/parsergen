@@ -19,7 +19,7 @@ struct pg::lexer_type::compiled_regex {
 	pcre2_regex_t reg;
 
 	explicit compiled_regex(const std::string &pattern)
-	    : reg(std::make_shared<pcre2_regex>(pattern, true))
+		: reg(std::make_shared<pcre2_regex>(pattern, true))
 	{}
 
 	bool match(const std::string &text)

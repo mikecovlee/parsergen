@@ -225,11 +225,11 @@ token_list_t generator::lex_string(const std::string &lang, const std::string &t
 std::vector<lex_error> generator::get_lex_errors() const
 {
 	if (lexer_)
-		return lexer_->error_log;
+	return lexer_->error_log;
 	if (unicode_lexer_)
 		return unicode_lexer_->error_log;
-	return {};
-}
+		return {};
+	}
 
 std::vector<parse_error> generator::get_errors()
 {
@@ -255,7 +255,9 @@ std::vector<parse_error> generator::get_errors()
 		err.insert(err.end(), perr.begin(), perr.end());
 	}
 	std::sort(err.begin(), err.end(),
-	          [](const parse_error &lhs, const parse_error &rhs) { return lhs.pos[1] < rhs.pos[1]; });
+	[](const parse_error &lhs, const parse_error &rhs) {
+		return lhs.pos[1] < rhs.pos[1];
+	});
 	return err;
 }
 

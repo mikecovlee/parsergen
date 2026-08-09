@@ -21,12 +21,12 @@ static void check(const std::string &name, bool cond)
 static pg::lexical_t make_json_lex()
 {
 	return {
-	    {"id", "^[a-z]+$"},
-	    {"num", "^[0-9]+\\.?([0-9]+)?$"},
-	    {"str", "^(\"|\"([^\"]|\\\\\")*\"?)$"},
-	    {"sig", "^(:|,|\\[|\\]|\\{|\\})$"},
-	    {"ign", "^\\s+$"},
-	    {"err", "^\"$"},
+		{"id", "^[a-z]+$"},
+		{"num", "^[0-9]+\\.?([0-9]+)?$"},
+		{"str", "^(\"|\"([^\"]|\\\\\")*\"?)$"},
+		{"sig", "^(:|,|\\[|\\]|\\{|\\})$"},
+		{"ign", "^\\s+$"},
+		{"err", "^\"$"},
 	};
 }
 
@@ -42,14 +42,15 @@ static pg::syntax_map_t make_json_stx()
 	stx["array"] = {term("["), optional({ref("elements")}), term("]")};
 	stx["elements"] = {ref("value"), repeat({term(","), ref("value")})};
 	stx["value"] = {cond_or({
-	    {token("str")},
-	    {token("num")},
-	    {ref("object")},
-	    {ref("array")},
-	    {term("true")},
-	    {term("false")},
-	    {term("null")},
-	})};
+			{token("str")},
+			{token("num")},
+			{ref("object")},
+			{ref("array")},
+			{term("true")},
+			{term("false")},
+			{term("null")},
+		})
+	};
 	return stx;
 }
 
@@ -82,26 +83,30 @@ static void test_tiny_parse()
 
 	grammar gram;
 	gram.lex = {
-	    {"id", "^[A-Za-z_]\\w*$"},
-	    {"num", "^[0-9]+$"},
-	    {"sig", "^(\\+|-|\\*|/|=|\\(|\\)|;)$"},
-	    {"ign", "^\\s+$"},
-	    {"err", "^:$"},
+		{"id", "^[A-Za-z_]\\w*$"},
+		{"num", "^[0-9]+$"},
+		{"sig", "^(\\+|-|\\*|/|=|\\(|\\)|;)$"},
+		{"ign", "^\\s+$"},
+		{"err", "^:$"},
 	};
 	gram.stx["begin"] = {ref("stmts")};
 	gram.stx["stmts"] = {ref("statement"), repeat({term(";"), ref("statement")}),
-	                     optional({term(";")})};
+	                     optional({term(";")})
+	                    };
 	gram.stx["statement"] = {cond_or({{ref("assign-stmt")}})};
 	gram.stx["assign-stmt"] = {token("id"), term("="), ref("expr")};
 	gram.stx["expr"] = {ref("term"),
-	                    repeat({cond_or({{term("+")}, {term("-")}}), ref("term")})};
+	repeat({cond_or({{term("+")}, {term("-")}}), ref("term")})
+	};
 	gram.stx["term"] = {ref("fact"),
-	                    repeat({cond_or({{term("*")}, {term("/")}}), ref("fact")})};
+	repeat({cond_or({{term("*")}, {term("/")}}), ref("fact")})
+	};
 	gram.stx["fact"] = {cond_or({
-	    {term("("), ref("expr"), term(")")},
-	    {token("num")},
-	    {token("id")},
-	})};
+			{term("("), ref("expr"), term(")")},
+			{token("num")},
+			{token("id")},
+		})
+	};
 	gram.stx["ignore"] = {repeat({token("ign")})};
 
 	generator gen;
@@ -145,11 +150,11 @@ static void test_error_recovery()
 
 	lexer_type lexer;
 	lexical_t lex = {
-	    {"id", "^[a-z]+$"},
-	    {"num", "^[0-9]+$"},
-	    {"sig", "^(=)$"},
-	    {"endl", "^\\n+$"},
-	    {"ign", "^[ \\t]+$"},
+		{"id", "^[a-z]+$"},
+		{"num", "^[0-9]+$"},
+		{"sig", "^(=)$"},
+		{"endl", "^\\n+$"},
+		{"ign", "^[ \\t]+$"},
 	};
 	auto tokens = lexer.run(lex, "x = 1\ny = \nz = 3\n");
 

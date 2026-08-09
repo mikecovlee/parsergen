@@ -104,7 +104,7 @@ std::optional<int> parser_type::try_ignore()
 		if (cache_it != ign_cache.end())
 			return cache_it->second;
 		if (ign_bootset && stack.front().cursor < static_cast<int>(lex->size()) &&
-		    !ign_bootset->predict(lex->at(stack.front().cursor))) {
+		        !ign_bootset->predict(lex->at(stack.front().cursor))) {
 			ign_cache[ign_key] = std::nullopt;
 			return std::nullopt;
 		}
@@ -461,7 +461,8 @@ void parser_type::solve_pending_ref()
 					unsolved_ref = true;
 			}
 		}
-	} while (unsolved_ref && pass <= max_prediction_pass);
+	}
+	while (unsolved_ref && pass <= max_prediction_pass);
 	if (pass > max_prediction_pass)
 		throw std::runtime_error("Reaches max pass of prediction.");
 }

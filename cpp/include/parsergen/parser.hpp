@@ -62,9 +62,18 @@ protected:
 	void push(ast_node val);
 	void push_token();
 
-	int cursor() const { return stack.front().cursor; }
-	bool eof() const { return stack.front().cursor >= static_cast<int>(lex->size()); }
-	const token_type &peek() const { return lex->at(stack.front().cursor); }
+	int cursor() const
+	{
+		return stack.front().cursor;
+	}
+	bool eof() const
+	{
+		return stack.front().cursor >= static_cast<int>(lex->size());
+	}
+	const token_type &peek() const
+	{
+		return lex->at(stack.front().cursor);
+	}
 
 	void error(const std::string &str, std::array<std::size_t, 2> pos);
 	void do_accept();
@@ -111,7 +120,10 @@ public:
 	recovering_parser_type();
 
 	bool parse_with_recovery(const token_list_t &lex_output);
-	const std::vector<parse_error> &get_all_errors() const { return all_errors; }
+	const std::vector<parse_error> &get_all_errors() const
+	{
+		return all_errors;
+	}
 };
 
 } // namespace pg

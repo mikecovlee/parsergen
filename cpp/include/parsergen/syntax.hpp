@@ -37,51 +37,51 @@ inline syntax_t make_syntax(syntax_type type, std::any data)
 }
 
 namespace syntax {
-	inline syntax_t token(const std::string &data)
-	{
-		return make_syntax(syntax_type::token, data);
-	}
+inline syntax_t token(const std::string &data)
+{
+	return make_syntax(syntax_type::token, data);
+}
 
-	inline syntax_t term(const std::string &data)
-	{
-		return make_syntax(syntax_type::term, data);
-	}
+inline syntax_t term(const std::string &data)
+{
+	return make_syntax(syntax_type::term, data);
+}
 
-	inline syntax_t ref(const std::string &name)
-	{
-		return make_syntax(syntax_type::ref, name);
-	}
+inline syntax_t ref(const std::string &name)
+{
+	return make_syntax(syntax_type::ref, name);
+}
 
-	inline syntax_t nlook(syntax_seq args)
-	{
-		return make_syntax(syntax_type::nlook, std::move(args));
-	}
+inline syntax_t nlook(syntax_seq args)
+{
+	return make_syntax(syntax_type::nlook, std::move(args));
+}
 
-	inline syntax_t repeat(syntax_seq args)
-	{
-		return make_syntax(syntax_type::repeat, std::move(args));
-	}
+inline syntax_t repeat(syntax_seq args)
+{
+	return make_syntax(syntax_type::repeat, std::move(args));
+}
 
-	inline syntax_t optional(syntax_seq args)
-	{
-		return make_syntax(syntax_type::opt, std::move(args));
-	}
+inline syntax_t optional(syntax_seq args)
+{
+	return make_syntax(syntax_type::opt, std::move(args));
+}
 
-	inline syntax_t cond_or(std::initializer_list<syntax_seq> args)
-	{
-		syntax_seq data;
-		for (auto &seq : args)
-			data.push_back(make_syntax(syntax_type::cond_p, seq));
-		return make_syntax(syntax_type::cond, std::move(data));
-	}
+inline syntax_t cond_or(std::initializer_list<syntax_seq> args)
+{
+	syntax_seq data;
+	for (auto &seq : args)
+		data.push_back(make_syntax(syntax_type::cond_p, seq));
+	return make_syntax(syntax_type::cond, std::move(data));
+}
 
-	inline syntax_t cond_or(std::vector<syntax_seq> args)
-	{
-		syntax_seq data;
-		for (auto &seq : args)
-			data.push_back(make_syntax(syntax_type::cond_p, std::move(seq)));
-		return make_syntax(syntax_type::cond, std::move(data));
-	}
+inline syntax_t cond_or(std::vector<syntax_seq> args)
+{
+	syntax_seq data;
+	for (auto &seq : args)
+		data.push_back(make_syntax(syntax_type::cond_p, std::move(seq)));
+	return make_syntax(syntax_type::cond, std::move(data));
+}
 } // namespace syntax
 
 } // namespace pg
