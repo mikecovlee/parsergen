@@ -56,11 +56,11 @@ struct grammar {
 };
 
 // parser.hpp
-namespace parse_state {
-constexpr int accept = 2;
-constexpr int reject = 1;
-constexpr int eof    = 0;
-}
+enum class parse_state {
+    eof    = 0,
+    reject = 1,
+    accept = 2
+};
 
 using syntax_map_t = std::unordered_map<std::string, syntax_seq>;
 using predict_cache_t = std::unordered_map<std::string, std::shared_ptr<bootset_type>>;
@@ -77,7 +77,7 @@ struct parse_stage {
 };
 
 struct parse_memo {
-    int result = 0;
+    parse_state result = parse_state::reject;
     int cursor = 0;
     std::shared_ptr<syntax_tree> product = nullptr;
 };
@@ -101,7 +101,7 @@ namespace pg::syntax {
 ## lexer_type
 
 ```cpp
-class pg::lexer_type {
+class pg::lexer_type final {
 public:
     std::array<std::size_t, 3> pos = {0, 0, 0};   // [col, line, cursor]
     std::vector<lex_error> error_log;
@@ -112,11 +112,11 @@ public:
 
 private:
     // 内部状态
-    std::unordered_set<std::string> lexical_set;
-    std::string buff;
-    std::string data;
-    std::array<std::size_t, 2> wpos = {0, 0};
-    std::unordered_map<std::string, std::shared_ptr<compiled_regex>> regex_cache;
+    std::unordered_set<std::string> m_lexical_set;
+    std::string m_buff;
+    std::string m_data;
+    std::array<std::size_t, 2> m_wpos = {0, 0};
+    std::unordered_map<std::string, std::shared_ptr<compiled_regex>> m_regex_cache;
 
     std::shared_ptr<compiled_regex> get_regex(const std::string &pattern);
     void process_token();
@@ -126,7 +126,7 @@ private:
 ## unicode_lexer_type
 
 ```cpp
-class pg::unicode_lexer_type {
+class pg::unicode_lexer_type final {
 public:
     std::array<std::size_t, 3> pos = {0, 0, 0};
     std::vector<lex_error> error_log;
@@ -138,12 +138,12 @@ public:
     token_list_t run(const lexical_t &lexical, const std::string &text);
 
 private:
-    std::shared_ptr<codecvt::charset> cvt;
-    std::unordered_set<std::string> lexical_set;
-    std::u32string buff;
-    std::u32string data;
-    std::array<std::size_t, 2> wpos = {0, 0};
-    std::unordered_map<std::string, std::shared_ptr<compiled_wregex>> regex_cache;
+    std::shared_ptr<codecvt::charset> m_cvt;
+    std::unordered_set<std::string> m_lexical_set;
+    std::u32string m_buff;
+    std::u32string m_data;
+    std::array<std::size_t, 2> m_wpos = {0, 0};
+    std::unordered_map<std::string, std::shared_ptr<compiled_wregex>> m_regex_cache;
 
     std::shared_ptr<compiled_wregex> get_wregex(const std::string &pattern);
     void cursor_forward();
@@ -183,24 +183,24 @@ public:
     bool parse(const token_list_t &lex_output);
     bool run(const syntax_map_t &grammar, const token_list_t &lex_output);
 
-    std::shared_ptr<syntax_tree> production();
+    std::shared_ptr<syntax_tree> production() const;
     std::vector<parse_error> get_log(int n);
 
 protected:
-    std::deque<parse_stage> stack;
-    syntax_map_t syn_storage;
-    const syntax_map_t *syn = nullptr;
-    const token_list_t *lex = nullptr;
+    std::deque<parse_stage> m_stack;
+    syntax_map_t m_syn_storage;
+    const syntax_map_t *m_syn = nullptr;
+    const token_list_t *m_lex = nullptr;
 
-    std::vector<parse_error> error_log;
-    int max_cursor = 0;
-    int max_prediction_pass = 20;
-    predict_cache_t predict_cache;
-    std::shared_ptr<bootset_type> ign_bootset;
-    bool on_ign = false;
+    std::vector<parse_error> m_error_log;
+    int m_max_cursor = 0;
+    int m_max_prediction_pass = 20;
+    predict_cache_t m_predict_cache;
+    std::shared_ptr<bootset_type> m_ign_bootset;
+    bool m_on_ign = false;
 
-    std::unordered_map<std::string, parse_memo> memo_cache;
-    std::unordered_map<std::string, std::optional<int>> ign_cache;
+    std::unordered_map<std::string, parse_memo> m_memo_cache;
+    std::unordered_map<std::string, std::optional<int>> m_ign_cache;
 
     void push_stage(const std::string &root);
     parse_stage pop_stage();
@@ -215,11 +215,11 @@ protected:
     void do_accept();
     void do_merge();
 
-    virtual int match_syntax(const syntax_seq &seq);
+    virtual parse_state match_syntax(const syntax_seq &seq);
     std::optional<int> try_ignore();
     void ignore();
-    int predict(const std::shared_ptr<bootset_type> &set);
-    int match(const syntax_t &it);
+    parse_state predict(const std::shared_ptr<bootset_type> &set);
+    parse_state match(const syntax_t &it);
 
     std::shared_ptr<bootset_type> prep_syntax(const syntax_seq &seq);
     bool expand_pending_ref(std::shared_ptr<bootset_type> &boot);
@@ -230,18 +230,18 @@ protected:
 ## partial_parser_type
 
 ```cpp
-class pg::partial_parser_type : public parser_type {
+class pg::partial_parser_type final : public parser_type {
 public:
     std::function<void(partial_parser_type &)> on_eof_hook;
 
-    int match_syntax(const syntax_seq &seq) override;
+    parse_state match_syntax(const syntax_seq &seq) override;
 };
 ```
 
 ## recovering_parser_type
 
 ```cpp
-class pg::recovering_parser_type : public parser_type {
+class pg::recovering_parser_type final : public parser_type {
 public:
     recovering_parser_type();
 
@@ -249,8 +249,8 @@ public:
     const std::vector<parse_error> &get_all_errors() const;
 
 private:
-    std::unordered_set<std::string> sync_types;
-    std::vector<parse_error> all_errors;
+    std::unordered_set<std::string> m_sync_types;
+    std::vector<parse_error> m_all_errors;
 
     int find_sync_after(int pos);
 };
@@ -259,7 +259,7 @@ private:
 ## generator
 
 ```cpp
-class pg::generator {
+class pg::generator final {
 public:
     bool stop_on_error = true;
     bool show_prompt = true;
@@ -282,16 +282,16 @@ public:
     std::vector<parse_error> get_errors();
 
 private:
-    std::unordered_map<std::string, grammar> rules;
-    std::unordered_map<std::string, std::string> lang_codings;
-    std::string input;
-    std::vector<std::string> code_buff;
-    token_list_t token_buff;
-    std::shared_ptr<syntax_tree> ast_;
-    std::unique_ptr<lexer_type> lexer_;
-    std::unique_ptr<unicode_lexer_type> unicode_lexer_;
-    std::unique_ptr<parser_type> parser_;
-    std::string file_path = "<FILE>";
+    std::unordered_map<std::string, grammar> m_rules;
+    std::unordered_map<std::string, std::string> m_lang_codings;
+    std::string m_input;
+    std::vector<std::string> m_code_buff;
+    token_list_t m_token_buff;
+    std::shared_ptr<syntax_tree> m_ast;
+    std::unique_ptr<lexer_type> m_lexer;
+    std::unique_ptr<unicode_lexer_type> m_unicode_lexer;
+    std::unique_ptr<parser_type> m_parser;
+    std::string m_file_path = "<FILE>";
 
     bool priv_run(const std::string &lang);
 };
