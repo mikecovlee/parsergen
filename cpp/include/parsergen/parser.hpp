@@ -14,11 +14,11 @@
 
 namespace pg {
 
-namespace parse_state {
-constexpr int accept = 2;
-constexpr int reject = 1;
-constexpr int eof    = 0;
-} // namespace parse_state
+enum class parse_state {
+	eof    = 0,
+	reject = 1,
+	accept = 2
+};
 
 struct parse_stage {
 	syntax_tree product;
@@ -32,7 +32,7 @@ struct parse_error {
 };
 
 struct parse_memo {
-	int result = 0;
+	parse_state result = parse_state::reject;
 	int cursor = 0;
 	std::shared_ptr<syntax_tree> product = nullptr;
 };
@@ -42,20 +42,20 @@ using predict_cache_t = std::unordered_map<std::string, std::shared_ptr<bootset_
 
 class parser_type {
 protected:
-	std::deque<parse_stage> stack;
-	syntax_map_t syn_storage;
-	const syntax_map_t *syn = nullptr;
-	const token_list_t *lex = nullptr;
+	std::deque<parse_stage> m_stack;
+	syntax_map_t m_syn_storage;
+	const syntax_map_t *m_syn = nullptr;
+	const token_list_t *m_lex = nullptr;
 
-	std::vector<parse_error> error_log;
-	int max_cursor = 0;
-	int max_prediction_pass = 20;
-	predict_cache_t predict_cache;
-	std::shared_ptr<bootset_type> ign_bootset;
-	bool on_ign = false;
+	std::vector<parse_error> m_error_log;
+	int m_max_cursor = 0;
+	int m_max_prediction_pass = 20;
+	predict_cache_t m_predict_cache;
+	std::shared_ptr<bootset_type> m_ign_bootset;
+	bool m_on_ign = false;
 
-	std::unordered_map<std::string, parse_memo> memo_cache;
-	std::unordered_map<std::string, std::optional<int>> ign_cache;
+	std::unordered_map<std::string, parse_memo> m_memo_cache;
+	std::unordered_map<std::string, std::optional<int>> m_ign_cache;
 
 	void push_stage(const std::string &root);
 	parse_stage pop_stage();
@@ -64,26 +64,26 @@ protected:
 
 	int cursor() const
 	{
-		return stack.front().cursor;
+		return m_stack.front().cursor;
 	}
 	bool eof() const
 	{
-		return stack.front().cursor >= static_cast<int>(lex->size());
+		return m_stack.front().cursor >= static_cast<int>(m_lex->size());
 	}
 	const token_type &peek() const
 	{
-		return lex->at(stack.front().cursor);
+		return m_lex->at(m_stack.front().cursor);
 	}
 
 	void error(const std::string &str, std::array<std::size_t, 2> pos);
 	void do_accept();
 	void do_merge();
 
-	virtual int match_syntax(const syntax_seq &seq);
+	virtual parse_state match_syntax(const syntax_seq &seq);
 	std::optional<int> try_ignore();
 	void ignore();
-	int predict(const std::shared_ptr<bootset_type> &set);
-	int match(const syntax_t &it);
+	parse_state predict(const std::shared_ptr<bootset_type> &set);
+	parse_state match(const syntax_t &it);
 
 	std::shared_ptr<bootset_type> prep_syntax(const syntax_seq &seq);
 	bool expand_pending_ref(std::shared_ptr<bootset_type> &boot);
@@ -99,20 +99,20 @@ public:
 	bool parse(const token_list_t &lex_output);
 	bool run(const syntax_map_t &grammar, const token_list_t &lex_output);
 
-	std::shared_ptr<syntax_tree> production();
+	std::shared_ptr<syntax_tree> production() const;
 	std::vector<parse_error> get_log(int n);
 };
 
-class partial_parser_type : public parser_type {
+class partial_parser_type final : public parser_type {
 public:
 	std::function<void(partial_parser_type &)> on_eof_hook;
 
-	int match_syntax(const syntax_seq &seq) override;
+	parse_state match_syntax(const syntax_seq &seq) override;
 };
 
-class recovering_parser_type : public parser_type {
-	std::unordered_set<std::string> sync_types;
-	std::vector<parse_error> all_errors;
+class recovering_parser_type final : public parser_type {
+	std::unordered_set<std::string> m_sync_types;
+	std::vector<parse_error> m_all_errors;
 
 	int find_sync_after(int pos);
 
@@ -122,7 +122,7 @@ public:
 	bool parse_with_recovery(const token_list_t &lex_output);
 	const std::vector<parse_error> &get_all_errors() const
 	{
-		return all_errors;
+		return m_all_errors;
 	}
 };
 

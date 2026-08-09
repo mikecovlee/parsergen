@@ -57,11 +57,10 @@ public:
 
 	bool is_identifier(char32_t ch) override
 	{
-		if (ch > ascii_max)
-		return (ch >= 0x4E00 && ch <= 0x9FA5) || (ch >= 0x9FA6 && ch <= 0x9FEF) || ch == 0x3007;
-		else
+		if (ch <= ascii_max)
 			return ch == '_' || std::iswalnum(ch);
-		}
+		return (ch >= 0x4E00 && ch <= 0x9FA5) || (ch >= 0x9FA6 && ch <= 0x9FEF) || ch == 0x3007;
+	}
 };
 
 namespace gbk_impl {
@@ -116,9 +115,8 @@ public:
 		if (ch & gbk_impl::u32_blck_begin)
 		return (ch >= 0xB0A1 && ch <= 0xF7FE) || (ch >= 0x8140 && ch <= 0xA0FE) ||
 		       (ch >= 0xAA40 && ch <= 0xFEA0) || ch == 0xA996;
-		else
-			return ch == '_' || std::iswalnum(ch);
-		}
+		return ch == '_' || std::iswalnum(ch);
+	}
 };
 
 } // namespace codecvt

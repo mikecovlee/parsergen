@@ -21,7 +21,7 @@ struct bootset_type;
 
 struct syntax_impl {
 	std::shared_ptr<bootset_type> boot = nullptr;
-	syntax_type type;
+	syntax_type type = syntax_type::token;
 	std::any data;
 };
 

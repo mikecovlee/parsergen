@@ -9,18 +9,18 @@
 
 namespace pg {
 
-class generator {
-	std::unordered_map<std::string, grammar> rules;
-	std::unordered_map<std::string, std::string> lang_codings;
-	std::string input;
-	std::vector<std::string> code_buff;
-	token_list_t token_buff;
-	std::shared_ptr<syntax_tree> ast_;
-	std::unique_ptr<lexer_type> lexer_;
-	std::unique_ptr<unicode_lexer_type> unicode_lexer_;
-	std::unique_ptr<parser_type> parser_;
+class generator final {
+	std::unordered_map<std::string, grammar> m_rules;
+	std::unordered_map<std::string, std::string> m_lang_codings;
+	std::string m_input;
+	std::vector<std::string> m_code_buff;
+	token_list_t m_token_buff;
+	std::shared_ptr<syntax_tree> m_ast;
+	std::unique_ptr<lexer_type> m_lexer;
+	std::unique_ptr<unicode_lexer_type> m_unicode_lexer;
+	std::unique_ptr<parser_type> m_parser;
 
-	std::string file_path = "<FILE>";
+	std::string m_file_path = "<FILE>";
 
 	bool priv_run(const std::string &lang);
 
@@ -40,19 +40,19 @@ public:
 
 	std::shared_ptr<syntax_tree> ast() const
 	{
-		return ast_;
+		return m_ast;
 	}
 	const token_list_t &tokens() const
 	{
-		return token_buff;
+		return m_token_buff;
 	}
 	const std::vector<std::string> &code() const
 	{
-		return code_buff;
+		return m_code_buff;
 	}
 	const std::string &path() const
 	{
-		return file_path;
+		return m_file_path;
 	}
 
 	std::vector<parse_error> get_errors();
