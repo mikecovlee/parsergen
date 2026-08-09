@@ -34,7 +34,7 @@ enum class syntax_type { token=1, term=2, ref=3, nlook=4, repeat=5, opt=6, cond=
 
 struct syntax_impl {
     std::shared_ptr<bootset_type> boot = nullptr;
-    syntax_type type;
+    syntax_type type = syntax_type::token;
     std::any data;
 };
 

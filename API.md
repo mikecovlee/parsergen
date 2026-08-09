@@ -107,7 +107,7 @@ parse_state.{accept, reject, eof}
 |------|---|---|
 | `parser.on_eof_hook = fn` | `set_eof_hook(fn)` | 废弃（仅 CovScript 赋值） |
 | `parser.lex.push_back(tok)` | `append_token(tok)` | 废弃（C++ 不暴露内部 buffer） |
-| `parser.log = v` | `parser.log(v)` | 废弃（仅 CovScript 赋值） |
+| `parser.log = v` | 用 `generator.set_enable_log(v)` | 废弃（仅 CovScript 赋值） |
 
 ## recovering_parser
 
@@ -132,7 +132,7 @@ parse_state.{accept, reject, eof}
 
 | 字段 | 状态 |
 |------|---|
-| `parser.log = v` | 废弃（仅 CovScript 赋值，C++ 用 `parser.log(v)`） |
+| `parser.log = v` | 废弃（仅 CovScript 赋值；C++ 侧 `parser.log` 只读，日志请用 `generator.set_enable_log(v)`） |
 
 ## lexer_type
 
@@ -176,8 +176,8 @@ parse_state.{accept, reject, eof}
 
 | 方法/访问 | 说明 |
 |------|------|
-| `parsergen.make_grammar_from(ext, lex, stx)` | 工厂构建 |
-| `gram.ext` / `gram.lex` / `gram.stx` | 字段访问（两边语法一致） |
+| `parsergen.make_grammar_from(ext, lex, stx)` | 工厂构建（推荐） |
+| `gram.ext` / `gram.lex` / `gram.stx` | 字段读取（两边语法一致；赋值仅 CovScript，C++ 只读） |
 
 ### CovScript legacy
 
@@ -210,11 +210,12 @@ typeid parsergen.lex_error
 
 | 差异 | 原因 |
 |------|------|
-| `err.text = v` 赋值语法仅 CovScript | CovScript 赋值无法穿透 C++ 对象 |
+| `err.text = v` 赋值语法仅 CovScript | CovScript 赋值无法穿透 C++ 对象（用 `set_text(v)`） |
 | `gen.lexer` / `gen.parser` 仅 CovScript | C++ 封装不暴露内部 worker |
 | `unicode_lexer_type` 仅 CovScript | C++ 由 coding 内部处理 |
 | `print_header(txt)` 仅 CovScript | 纯便利函数 |
-| `parser.log = v` 赋值仅 CovScript | C++ 用 `parser.log(v)` |
+| `parser.log = v` 赋值仅 CovScript | C++ 侧只读，日志用 `generator.set_enable_log(v)` |
+| `gram.ext/lex/stx = v` 赋值仅 CovScript | C++ 侧只读，用 `make_grammar_from` 构建 |
 
 ## 统一写法完整示例
 

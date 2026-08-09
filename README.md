@@ -5,6 +5,16 @@ ParserGen is a top-down, backtracking parser generator for the
 It generates **LL(&#8727;)** parsers with PEG-style ordered choice,
 negative lookahead, and automatic whitespace skipping.
 
+ParserGen ships in two interchangeable implementations with an identical
+unified API (see [API.md](API.md)):
+
+- **`parsergen`** &mdash; pure CovScript reference implementation
+- **`parsergen_cxx`** &mdash; C++17 native implementation (`libparsergen`
+  + CNI extension), see [CXX_API.md](CXX_API.md)
+
+Set the environment variable `PARSERGEN_IMPL=parsergen_cxx` to switch a
+`context.import`-based loader between the two at runtime.
+
 ## Features
 
 | Feature | Description |
@@ -30,24 +40,24 @@ cspkg install parsergen --yes
 
 ### 2 &nbsp; Define a Lexer
 
-Each lexical rule is a regular expression. The special rule `"ign"` matches
-whitespace and comments (skipped between tokens).
+Each lexical rule is a regular-expression **pattern string**. The special rule
+`"ign"` matches whitespace and comments (skipped between tokens). Patterns are
+compiled internally by `add_language` / `make_grammar_from`.
 
 ```js
-import parsergen, regex
-
 var lex = {
-    "id"  : regex.build("^[A-Za-z_]\\w*$"),
-    "num" : regex.build("^[0-9]+$"),
-    "sig" : regex.build("^(\\+|\\*|\\(|\\))$"),
-    "ign" : regex.build("^\\s+$"),
-    "err" : regex.build("^.$")
+    "id"  : "^[A-Za-z_]\\w*$",
+    "num" : "^[0-9]+$",
+    "sig" : "^(\\+|\\*|\\(|\\))$",
+    "ign" : "^\\s+$",
+    "err" : "^.$"
 }.to_hash_map()
 ```
 
 ### 3 &nbsp; Define a Grammar
 
 ```js
+import parsergen
 constant syntax = parsergen.syntax
 
 @begin
@@ -67,28 +77,30 @@ var stx = {
 
 ### 4 &nbsp; Parse Input
 
+Build a grammar with `make_grammar_from` and register it with `add_language`
+(the unified API; works identically for `parsergen` and `parsergen_cxx`).
+
 ```js
-var gram = new parsergen.grammar
-gram.lex = lex
-gram.stx = stx
+var gram = parsergen.make_grammar_from(".*\\.mylang", lex, stx)
 
 var gen = new parsergen.generator
-gen.add_grammar("my-lang", gram)
+gen.set_show_prompt(false)
+gen.add_language("my-lang", "ascii", gram)
 
-if gen.from_string("my-lang", "1 + (2 * 3)")
-    var ast = gen.ast    // parsergen.syntax_tree
+if gen.from_string("my-lang", "1 + (2 + 3)")
+    var ast = gen.get_ast()    // parsergen.syntax_tree
     parsergen.print_ast(ast)
 else
-    parsergen.print_error(gen.file_path, gen.code_buff, gen.get_errors())
+    parsergen.print_error(gen.get_file_path(), gen.get_code_buff(), gen.get_errors())
 end
 ```
 
 ### 5 &nbsp; Parse from Files
 
-```js
-gen.add_grammar("my-lang", gram)
-gram.ext = ".*\\.mylang"
+The grammar's `ext` (set via `make_grammar_from`) selects the language by file
+extension.
 
+```js
 if gen.from_file("./test.mylang")
     // success
 else
@@ -183,15 +195,54 @@ else
 end
 ```
 
+## C++ Implementation (`parsergen_cxx`)
+
+The `cpp/` directory contains a C++17 port of the core engine
+(`libparsergen`) and a CovScript CNI extension (`parsergen_cxx.cse`) that
+exposes the same unified API. Algorithm and produced AST are identical to the
+CovScript implementation.
+
+Build (requires the CovScript SDK; set `CS_DEV_PATH` to the SDK root):
+
+```bash
+# Unix
+cmake -S cpp -B cmake-build/unix
+cmake --build cmake-build/unix --parallel
+
+# Windows (MinGW-w64)
+cmake -G "MinGW Makefiles" -S cpp -B cmake-build/mingw-w64
+cmake --build cmake-build/mingw-w64 --parallel
+```
+
+Or use the helpers `csbuild/make.sh` / `csbuild/make.bat`, which also copy the
+built `parsergen_cxx.cse` to `build/imports/` for `cspkg build
+csbuild/parsergen_cxx.json`.
+
+Use it from CovScript exactly like `parsergen`:
+
+```js
+import parsergen_cxx as parsergen
+// ... same unified API as above ...
+```
+
+See [CXX_API.md](CXX_API.md) for the native C++ interface and
+[API.md](API.md) for the unified CovScript API shared by both implementations.
+
 ## Project Structure
 
 ```
-parsergen.csp          Core parser / lexer / generator
+parsergen.csp          Core parser / lexer / generator (CovScript)
 parsergen_debug.csp    Debug build with extended logging
 ebnfigen.csp           EBNF exporter (syntax → EBNF text)
 ebnf_parser.csp        EBNF parser (EBNF text → syntax)
 parsergen_analysis.csp Grammar analyzer (lr / unreachable / overlap)
 visitorgen.csp         AST visitor code generator
+cpp/                   C++17 implementation (libparsergen + CNI)
+  include/parsergen/   Public headers
+  src/                 Lexer / parser / generator sources
+  cni/                 CovScript CNI extension (parsergen_cxx.cse)
+  test/                C++ unit tests + drop-in comparison scripts
+csbuild/               Build & format scripts + cspkg descriptors
 unit_tests/            8 test suites, 300+ test cases
 tests/                 Integration test grammars (tiny, cminus, JSON, ECS)
 misc/                  Utility scripts

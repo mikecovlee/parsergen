@@ -2,17 +2,18 @@
 
 ## Lexical Rules
 
-Lexical rules are defined as a `hash_map` of rule names to regular expressions
-(created with `regex.build()`). The lexer greedily matches the longest prefix.
+Lexical rules are defined as a `hash_map` of rule names to regular-expression
+**pattern strings**. The lexer greedily matches the longest prefix. Patterns are
+compiled internally when registered via `add_language` / `make_grammar_from`.
 
 ```js
 var lex = {
-    "id"   : regex.build("^[A-Za-z_]\\w*$"),   // identifiers
-    "num"  : regex.build("^[0-9]+$"),            // numbers
-    "str"  : regex.build(`^("|"([^"]|\\")*"?)$`), // strings
-    "sig"  : regex.build("^(=|;|\\(|\\))$"),     // single-character tokens
-    "ign"  : regex.build("^\\s+$"),              // whitespace (skipped)
-    "err"  : regex.build("^.$")                  // catch-all for unknown chars
+    "id"   : "^[A-Za-z_]\\w*$",   // identifiers
+    "num"  : "^[0-9]+$",            // numbers
+    "str"  : `^("|"([^"]|\\")*"?)$`, // strings
+    "sig"  : "^(=|;|\\(|\\))$",     // single-character tokens
+    "ign"  : "^\\s+$",              // whitespace (skipped)
+    "err"  : "^.$"                  // catch-all for unknown chars
 }.to_hash_map()
 ```
 
@@ -29,8 +30,8 @@ Characters in regexes that conflict with Covariant Script string/block syntax
 ```js
 @begin
 var lex = {
-    "sig" : regex.build("^(\\{|\\}|\\[|\\]|\\(|\\))$"),
-    "ign" : regex.build("^(\\s+|\\{[^\\}]*\\}?)$")
+    "sig" : "^(\\{|\\}|\\[|\\]|\\(|\\))$",
+    "ign" : "^(\\s+|\\{[^\\}]*\\}?)$"
 }.to_hash_map()
 @end
 ```
@@ -188,15 +189,15 @@ errors found in a single pass, rather than stopping at the first error.
 ## Complete Example
 
 ```js
-import parsergen, regex
+import parsergen
 constant syntax = parsergen.syntax
 
 // --- Lexer ---
 var lex = {
-    "id"  : regex.build("^[a-z]+$"),
-    "num" : regex.build("^[0-9]+$"),
-    "op"  : regex.build("^(=|;|\\+|\\*|\\(|\\))$"),
-    "ign" : regex.build("^\\s+$")
+    "id"  : "^[a-z]+$",
+    "num" : "^[0-9]+$",
+    "op"  : "^(=|;|\\+|\\*|\\(|\\))$",
+    "ign" : "^\\s+$"
 }.to_hash_map()
 
 // --- Grammar ---
@@ -207,7 +208,9 @@ var stx = {
                syntax.term(";")},
     "expr"  : {syntax.ref("term"),
                syntax.repeat(syntax.term("+"), syntax.ref("term"))},
-    "term"  : {syntax.cond_or(
+    "term"  : {syntax.ref("factor"),
+               syntax.repeat(syntax.term("*"), syntax.ref("factor"))},
+    "factor": {syntax.cond_or(
         {syntax.token("num")},
         {syntax.token("id")},
         {syntax.term("("), syntax.ref("expr"), syntax.term(")")}
@@ -217,12 +220,11 @@ var stx = {
 @end
 
 // --- Parse ---
-var gram = new parsergen.grammar
-gram.lex = lex
-gram.stx = stx
+var gram = parsergen.make_grammar_from(".*\\.calc", lex, stx)
 
 var gen = new parsergen.generator
-gen.add_grammar("calc", gram)
+gen.set_show_prompt(false)
+gen.add_language("calc", "ascii", gram)
 gen.from_string("calc", "x = 1 + (2 * y);")
 ```
 

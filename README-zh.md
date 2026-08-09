@@ -4,6 +4,13 @@ ParserGen 是一个为 [Covariant Script](https://github.com/covscript/covscript
 编写的自顶向下、支持回溯的解析器生成器。它生成 **LL(&#8727;)** 解析器，支持 PEG
 风格的有序选择、负向前瞻和自动空白跳过。
 
+ParserGen 提供两套可互换的实现，统一 API 完全一致（见 [API.md](API.md)）：
+
+- **`parsergen`** &mdash; 纯 CovScript 参考实现
+- **`parsergen_cxx`** &mdash; C++17 原生实现（`libparsergen` + CNI 扩展），见 [CXX_API.md](CXX_API.md)
+
+设置环境变量 `PARSERGEN_IMPL=parsergen_cxx` 可让基于 `context.import` 的加载器在两者间切换。
+
 ## 特性
 
 | 特性 | 说明 |
@@ -29,23 +36,22 @@ cspkg install parsergen --yes
 
 ### 2 &nbsp; 定义词法规则
 
-每个词法规则是一个正则表达式。`"ign"` 是特殊规则，匹配的 token 会被静默丢弃（用于空白/注释）。
+每个词法规则是一个正则表达式**模式字符串**。`"ign"` 是特殊规则，匹配的 token 会被静默丢弃（用于空白/注释）。模式由 `add_language` / `make_grammar_from` 内部编译。
 
 ```js
-import parsergen, regex
-
 var lex = {
-    "id"  : regex.build("^[A-Za-z_]\\w*$"),   // 标识符
-    "num" : regex.build("^[0-9]+$"),            // 数字
-    "sig" : regex.build("^(\\+|\\*|\\(|\\))$"), // 单字符 Token
-    "ign" : regex.build("^\\s+$"),              // 空白（跳过）
-    "err" : regex.build("^.$")                  // 未知字符捕获
+    "id"  : "^[A-Za-z_]\\w*$",   // 标识符
+    "num" : "^[0-9]+$",            // 数字
+    "sig" : "^(\\+|\\*|\\(|\\))$", // 单字符 Token
+    "ign" : "^\\s+$",              // 空白（跳过）
+    "err" : "^.$"                  // 未知字符捕获
 }.to_hash_map()
 ```
 
 ### 3 &nbsp; 定义语法规则
 
 ```js
+import parsergen
 constant syntax = parsergen.syntax
 
 @begin
@@ -65,28 +71,28 @@ var stx = {
 
 ### 4 &nbsp; 解析输入
 
+用 `make_grammar_from` 构建 grammar，再用 `add_language` 注册（统一 API，`parsergen` 与 `parsergen_cxx` 一致）。
+
 ```js
-var gram = new parsergen.grammar
-gram.lex = lex
-gram.stx = stx
+var gram = parsergen.make_grammar_from(".*\\.mylang", lex, stx)
 
 var gen = new parsergen.generator
-gen.add_grammar("my-lang", gram)
+gen.set_show_prompt(false)
+gen.add_language("my-lang", "ascii", gram)
 
-if gen.from_string("my-lang", "1 + (2 * 3)")
-    var ast = gen.ast    // parsergen.syntax_tree
+if gen.from_string("my-lang", "1 + (2 + 3)")
+    var ast = gen.get_ast()    // parsergen.syntax_tree
     parsergen.print_ast(ast)
 else
-    parsergen.print_error(gen.file_path, gen.code_buff, gen.get_errors())
+    parsergen.print_error(gen.get_file_path(), gen.get_code_buff(), gen.get_errors())
 end
 ```
 
 ### 5 &nbsp; 从文件解析
 
-```js
-gen.add_grammar("my-lang", gram)
-gram.ext = ".*\\.mylang"
+grammar 的 `ext`（由 `make_grammar_from` 设定）按文件扩展名选择语言。
 
+```js
 if gen.from_file("./test.mylang")
     // 成功
 else
@@ -179,15 +185,50 @@ else
 end
 ```
 
+## C++ 实现（`parsergen_cxx`）
+
+`cpp/` 目录包含核心引擎的 C++17 移植（`libparsergen`）及暴露相同统一 API 的
+CovScript CNI 扩展（`parsergen_cxx.cse`）。其算法与生成的 AST 和 CovScript 实现完全一致。
+
+构建（需要 CovScript SDK，将 `CS_DEV_PATH` 指向 SDK 根目录）：
+
+```bash
+# Unix
+cmake -S cpp -B cmake-build/unix
+cmake --build cmake-build/unix --parallel
+
+# Windows (MinGW-w64)
+cmake -G "MinGW Makefiles" -S cpp -B cmake-build/mingw-w64
+cmake --build cmake-build/mingw-w64 --parallel
+```
+
+或使用辅助脚本 `csbuild/make.sh` / `csbuild/make.bat`（同时把构建出的
+`parsergen_cxx.cse` 复制到 `build/imports/`，供 `cspkg build csbuild/parsergen_cxx.json` 使用）。
+
+在 CovScript 中像 `parsergen` 一样使用：
+
+```js
+import parsergen_cxx as parsergen
+// ... 与上文相同的统一 API ...
+```
+
+原生 C++ 接口见 [CXX_API.md](CXX_API.md)，两套实现共享的统一 CovScript API 见 [API.md](API.md)。
+
 ## 项目结构
 
 ```
-parsergen.csp           核心解析器 / 词法分析器 / 生成器
+parsergen.csp           核心解析器 / 词法分析器 / 生成器（CovScript）
 parsergen_debug.csp     调试版本（扩展日志）
 ebnfigen.csp            EBNF 导出器（syntax → EBNF 文本）
 ebnf_parser.csp         EBNF 解析器（EBNF 文本 → syntax）
 parsergen_analysis.csp  语法分析器（左递归 / 不可达 / 重叠）
 visitorgen.csp          AST 访问器代码生成器
+cpp/                    C++17 实现（libparsergen + CNI）
+  include/parsergen/    公共头文件
+  src/                  词法 / 语法 / 生成器源码
+  cni/                  CovScript CNI 扩展（parsergen_cxx.cse）
+  test/                 C++ 单元测试 + drop-in 对比脚本
+csbuild/                构建/格式化脚本 + cspkg 描述符
 unit_tests/             8 组测试，300+ 用例
 tests/                  集成测试语法（tiny, cminus, JSON, ECS）
 misc/                   实用工具脚本
