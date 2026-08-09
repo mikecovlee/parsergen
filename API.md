@@ -10,6 +10,27 @@ CovScript `parsergen.csp` 和 C++ `parsergen_cxx.cse` 的统一对外接口。
 - C++ CNI `parsergen_cxx.cse`：type_t 注册（支持 `new` 语义）+ 统一方法
 - C++ 原生库 `libparsergen`：见 CXX_API.md
 
+## 约定：优先使用方法 API，避免 property 赋值
+
+> **统一 API 的设计立场是「方法优先」。** 请一律使用统一的**方法**接口
+> （`get_*` / `set_*` / `make_*` / `add_language` 等），**不要**依赖对对象字段的
+> property 读写赋值（如 `gen.ast`、`gram.lex = ...`、`parser.log = v`）。
+
+理由：
+
+1. **跨实现一致性**：方法 API 在 CovScript 与 C++ 两套实现中行为完全一致；而
+   property 赋值**无法穿透 C++ 对象**——在 `parsergen_cxx` 侧对 CNI 对象做
+   `obj.field = v` 赋值会**静默失败**（不报错但不生效），读取也仅限只读访问。
+2. **可移植性**：只用方法 API 的代码可以在 `parsergen` 与 `parsergen_cxx` 之间
+   无缝切换（drop-in），不依赖任何实现细节。
+3. **legacy 字段仅作兼容**：`gen.ast`、`gram.lex = ...` 等字段访问/赋值属于
+   CovScript legacy，仅为向后兼容保留，均已标注**废弃**（见下文各表的
+   「CovScript legacy」小节），新代码不应使用。
+
+**只读访问**（如遍历 AST 时读 `tree.root`、`tree.nodes`、`tok.type`、`tok.data`、
+`err.text`、`err.pos`）两套实现均支持，可放心使用；需要**写入**时请改用对应的
+方法（如 `err.set_text(v)`、`err.set_pos(v)`）。
+
 ## 构造方式
 
 | 类型 | 写法 |
@@ -185,7 +206,10 @@ parse_state.{accept, reject, eof}
 |------|---|
 | `new parsergen.grammar` + 字段赋值 | 废弃（推荐用 `make_grammar_from`） |
 
-## AST 节点访问（两边语法一致）
+## AST 节点访问（只读，两边语法一致）
+
+以下为**只读**访问，两套实现均支持。写入请使用对应方法（见 `lex_error` 的
+`set_text` / `set_pos`）。
 
 | 访问 | 说明 |
 |------|------|

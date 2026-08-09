@@ -136,7 +136,7 @@ var ofs = iostream.ofstream("./grammar.ebnf")
 hash_map，可直接用于解析。
 
 ```js
-import ebnf_parser, parsergen, regex
+import ebnf_parser, parsergen
 
 var p = new ebnf_parser.parser
 p.parse(
@@ -146,10 +146,8 @@ p.parse(
 )
 var stx = p.get_syntax()
 
-var gram = new parsergen.grammar
-gram.lex = my_lex
-gram.stx = stx
-// 和平时一样使用 parsergen.generator
+var gram = parsergen.make_grammar_from(".*\\.mylang", my_lex, stx)
+// 和平时一样使用 parsergen.generator + add_language
 ```
 
 ### `parsergen_analysis` &mdash; 语法分析

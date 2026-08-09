@@ -145,7 +145,7 @@ Parse EBNF text (ISO 14977 + `!()` and `<name>` extensions) into
 a parsergen syntax hash_map, ready for use with the parser.
 
 ```js
-import ebnf_parser, parsergen, regex
+import ebnf_parser, parsergen
 
 var p = new ebnf_parser.parser
 p.parse(
@@ -155,10 +155,8 @@ p.parse(
 )
 var stx = p.get_syntax()
 
-var gram = new parsergen.grammar
-gram.lex = my_lex
-gram.stx = stx
-// use with parsergen.generator as usual
+var gram = parsergen.make_grammar_from(".*\\.mylang", my_lex, stx)
+// use with parsergen.generator + add_language as usual
 ```
 
 ### `parsergen_analysis` &mdash; Grammar Analysis
