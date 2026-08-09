@@ -640,34 +640,34 @@ namespace parsergen_cni {
 		    .add_var("syntax_type", make_namespace(syntax_type_ns))
 		    .add_var("parse_state", make_namespace(parse_state_ns))
 		    .add_var("syntax", make_namespace(syntax_ns))
-		    .add_var("grammar", var::make_protect<type_t>(
-		        std::function<var()>([]() { return make_grammar_var(); }),
-		        std::type_index(typeid(grammar_t)), grammar_ext))
-		    .add_var("make_grammar_from", make_cni(make_grammar_from))
-		    .add_var("make_token", make_cni(make_token))
-		    .add_var("make_lex_error", make_cni(make_lex_error))
-		    .add_var("lexer_type", var::make_protect<type_t>(
-		        std::function<var()>([]() { return make_lexer_var(); }),
-		        std::type_index(typeid(lexer_t)), lexer_type_ext))
-		    .add_var("parser_type", var::make_protect<type_t>(
-		        std::function<var()>([]() { return make_parser_var(); }),
-		        std::type_index(typeid(parser_t)), parser_type_ext))
-		    .add_var("partial_parser_type", var::make_protect<type_t>(
-		        std::function<var()>([]() { return make_pparser_var(); }),
-		        std::type_index(typeid(pparser_wrapper_t)), partial_parser_type_ext))
-		    .add_var("recovering_parser_type", var::make_protect<type_t>(
-		        std::function<var()>([]() { return make_rparser_var(); }),
-		        std::type_index(typeid(rparser_t)), recovering_parser_type_ext))
-		    .add_var("generator", var::make_protect<type_t>(
-		        std::function<var()>([]() { return make_generator_var(); }),
-		        std::type_index(typeid(generator_t)), generator_ext))
-		    .add_var("print_error", make_cni(print_error))
-		    .add_var("print_ast", make_cni(print_ast))
-		    .add_var("syntax_tree", var::make<tree_t>(std::make_shared<pg::syntax_tree>()))
-		    .add_var("token_type", var::make<token_t>(std::make_shared<pg::token_type>()))
-		    .add_var("lex_error", var::make_protect<type_t>(
-		        std::function<var()>([]() { return var::make<lexerr_t>(std::make_shared<pg::lex_error>()); }),
-		        std::type_index(typeid(lexerr_t)), lex_error_ext));
+	    .add_var("grammar", var::make_constant<type_t>(
+	        std::function<var()>([]() { return make_grammar_var(); }),
+	        type_id(typeid(grammar_t)), grammar_ext))
+	    .add_var("make_grammar_from", make_cni(make_grammar_from))
+	    .add_var("make_token", make_cni(make_token))
+	    .add_var("make_lex_error", make_cni(make_lex_error))
+	    .add_var("lexer_type", var::make_constant<type_t>(
+	        std::function<var()>([]() { return make_lexer_var(); }),
+	        type_id(typeid(lexer_t)), lexer_type_ext))
+	    .add_var("parser_type", var::make_constant<type_t>(
+	        std::function<var()>([]() { return make_parser_var(); }),
+	        type_id(typeid(parser_t)), parser_type_ext))
+	    .add_var("partial_parser_type", var::make_constant<type_t>(
+	        std::function<var()>([]() { return make_pparser_var(); }),
+	        type_id(typeid(pparser_wrapper_t)), partial_parser_type_ext))
+	    .add_var("recovering_parser_type", var::make_constant<type_t>(
+	        std::function<var()>([]() { return make_rparser_var(); }),
+	        type_id(typeid(rparser_t)), recovering_parser_type_ext))
+	    .add_var("generator", var::make_constant<type_t>(
+	        std::function<var()>([]() { return make_generator_var(); }),
+	        type_id(typeid(generator_t)), generator_ext))
+	    .add_var("print_error", make_cni(print_error))
+	    .add_var("print_ast", make_cni(print_ast))
+	    .add_var("syntax_tree", var::make<tree_t>(std::make_shared<pg::syntax_tree>()))
+	    .add_var("token_type", var::make<token_t>(std::make_shared<pg::token_type>()))
+	    .add_var("lex_error", var::make_constant<type_t>(
+	        std::function<var()>([]() { return var::make<lexerr_t>(std::make_shared<pg::lex_error>()); }),
+	        type_id(typeid(lexerr_t)), lex_error_ext));
 
 		// syntax_impl type extensions
 		(*syntax_impl_ext)
