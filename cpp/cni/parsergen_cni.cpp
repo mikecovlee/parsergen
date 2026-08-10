@@ -171,7 +171,8 @@ namespace parsergen_cni {
 				arr.push_back(var::make<syntax_t>(it));
 			return var::make<array>(std::move(arr));
 		}
-		case pg::syntax_type::cond: {
+		case pg::syntax_type::cond:
+		case pg::syntax_type::cond_p: {
 			auto &seq = std::any_cast<pg::syntax_seq &>(s->data);
 			array arr;
 			for (auto &it : seq)
@@ -671,8 +672,8 @@ namespace parsergen_cni {
 
 		// syntax_impl type extensions
 		(*syntax_impl_ext)
-		    .add_var("type", make_cni(syntax_impl_type))
-		    .add_var("data", make_cni(syntax_impl_data));
+		    .add_var("type", make_cni(syntax_impl_type, callable::types::member_visitor))
+		    .add_var("data", make_cni(syntax_impl_data, callable::types::member_visitor));
 
 		// grammar type extensions
 		(*grammar_ext)
