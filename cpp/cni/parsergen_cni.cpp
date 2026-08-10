@@ -299,8 +299,19 @@ namespace parsergen_cni {
 
 	// ---- syntax_tree ----
 
-	string tree_root(const tree_t &t) { return t->root; }
-	array tree_nodes(const tree_t &t) { return tree_nodes_to_array(*t); }
+	string tree_root(const tree_t &t)
+	{
+		if (!t)
+			throw cs::lang_error("Null pointer accessed.");
+		return t->root;
+	}
+
+	array tree_nodes(const tree_t &t)
+	{
+		if (!t)
+			throw cs::lang_error("Null pointer accessed.");
+		return tree_nodes_to_array(*t);
+	}
 
 	// ---- parse_error ----
 
@@ -357,9 +368,12 @@ namespace parsergen_cni {
 		return p->run(*gram, tok_list);
 	}
 
-	tree_t parser_production(parser_t &p)
+	var parser_production(parser_t &p)
 	{
-		return p->production();
+		auto prod = p->production();
+		if (!prod)
+			return null_pointer;
+		return var::make<tree_t>(std::move(prod));
 	}
 
 	array parser_get_log(parser_t &p, numeric n)
@@ -439,9 +453,12 @@ namespace parsergen_cni {
 		return w->parser.run(gram, w->token_buff);
 	}
 
-	tree_t pparser_production(pparser_wrapper_t &w)
+	var pparser_production(pparser_wrapper_t &w)
 	{
-		return w->parser.production();
+		auto prod = w->parser.production();
+		if (!prod)
+			return null_pointer;
+		return var::make<tree_t>(std::move(prod));
 	}
 
 	array pparser_get_log(pparser_wrapper_t &w, numeric n)
@@ -500,9 +517,12 @@ namespace parsergen_cni {
 		return g->from_file(path);
 	}
 
-	tree_t gen_get_ast(generator_t &g)
+	var gen_get_ast(generator_t &g)
 	{
-		return g->ast();
+		auto ast = g->ast();
+		if (!ast)
+			return null_pointer;
+		return var::make<tree_t>(std::move(ast));
 	}
 
 	array gen_get_errors(generator_t &g)

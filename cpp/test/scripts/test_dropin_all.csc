@@ -251,6 +251,12 @@ check("ecs/v2.ecs", gen.from_file(base + "ecs/v2.ecs"))
 check("ecs/v3.ecs", gen.from_file(base + "ecs/v3.ecs"))
 check("ecs/v4.ecs", gen.from_file(base + "ecs/v4.ecs"))
 
+# === Regression: get_ast() null semantics on parse failure ===
+check("null-ast: valid parse succeeds", gen.from_string("tiny", "x := 1;"))
+check("null-ast: valid parse get_ast() != null", gen.get_ast() != null)
+check("null-ast: failed parse rejected", !gen.from_string("tiny", "x := ;"))
+check("null-ast: failed parse get_ast() == null", gen.get_ast() == null)
+
 system.out.println("")
 system.out.println("Drop-in replace: Passed " + test_pass + ", Failed " + test_fail)
 if test_fail > 0
