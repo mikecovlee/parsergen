@@ -51,7 +51,7 @@ if(DEFINED ENV{CS_DEV_PATH})
 
     add_library(parsergen_cni SHARED cni/parsergen_cni.cpp)
     target_link_libraries(parsergen_cni parsergen covscript)
-    if(WIN32)
+    if(MINGW)
         target_link_options(parsergen_cni PRIVATE -Wl,--export-all-symbols)
     endif()
     set_target_properties(parsergen_cni PROPERTIES

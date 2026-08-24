@@ -8,6 +8,7 @@ misc/test_ecs_memo.csc
 misc/test_memo.csc
 misc/test_recovery.csc
 unit_tests/_test_temp.*
+build/
 cpp/build/
 cmake-build/
 cpp/test/cxx_import/parsergen_cxx.cse

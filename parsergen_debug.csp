@@ -1050,6 +1050,9 @@ class partial_parser_type extends parser_type
     function set_eof_hook(fn)
         on_eof_hook = fn
     end
+    function clear_eof_hook()
+        on_eof_hook = null
+    end
     function push_tokens(arr)
         foreach it in arr do this.lex.push_back(it)
     end
@@ -1390,11 +1393,15 @@ class generator
         return move(err)
     end
     function add_language(lang, coding, gram)
+        var g = new grammar
+        g.ext = gram.ext
+        g.lex = gram.lex
+        g.stx = gram.stx
         var compiled_lex = new hash_map
-        foreach it in gram.lex
+        foreach it in g.lex
             compiled_lex[it.first] = regex.build_optimize(it.second)
         end
-        gram.lex = compiled_lex
+        g.lex = compiled_lex
         var cvt = null
         if coding == "utf8"
             if unicode == null
@@ -1410,7 +1417,7 @@ class generator
             end
         end
         lang_cvts[lang] = cvt
-        rules[lang] := gram
+        rules[lang] := g
     end
     function lex_string(lang, text, start_line)
         if !rules.exist(lang)
