@@ -166,31 +166,35 @@ bool generator::from_stream(const std::string &lang, std::istream &stream)
 
 bool generator::from_file(const std::string &path)
 {
+	std::vector<std::string> matched;
+	for (auto &[lang, gram] : m_rules) {
+		if (regex_match(gram.ext, path))
+			matched.push_back(lang);
+	}
+	if (matched.empty())
+		return false;
+	std::sort(matched.begin(), matched.end());
+
 	std::ifstream ifs(path);
 	if (!ifs.good())
 		return false;
-	for (auto &[lang, gram] : m_rules) {
-		if (regex_match(gram.ext, path)) {
-			std::string content((std::istreambuf_iterator<char>(ifs)),
-			                    std::istreambuf_iterator<char>());
-			m_file_path = path;
-			m_input = content;
-			if (!m_input.empty() && m_input.back() != '\n')
-				m_input += '\n';
-			m_code_buff.clear();
-			std::istringstream stream(m_input);
-			std::string line;
-			while (std::getline(stream, line)) {
-				if (!line.empty() && line.back() == '\r')
-					line.pop_back();
-				std::replace(line.begin(), line.end(), '\t', ' ');
-				m_code_buff.push_back(line);
-			}
-			m_code_buff.push_back("");
-			return priv_run(lang);
-		}
+	std::string content((std::istreambuf_iterator<char>(ifs)),
+	                    std::istreambuf_iterator<char>());
+	m_file_path = path;
+	m_input = content;
+	if (!m_input.empty() && m_input.back() != '\n')
+		m_input += '\n';
+	m_code_buff.clear();
+	std::istringstream stream(m_input);
+	std::string line;
+	while (std::getline(stream, line)) {
+		if (!line.empty() && line.back() == '\r')
+			line.pop_back();
+		std::replace(line.begin(), line.end(), '\t', ' ');
+		m_code_buff.push_back(line);
 	}
-	return false;
+	m_code_buff.push_back("");
+	return priv_run(matched.front());
 }
 
 token_list_t generator::lex_string(const std::string &lang, const std::string &text, int start_line)

@@ -617,9 +617,17 @@ class parser_type
                         end
                     end
                     push_stage("repeat")
+                    var before = this.stack.front.cursor
                     result = match_syntax(it.data)
                     switch result
                         case parse_state.accept
+                            # Item matched epsilon (no token consumed): the repeat
+                            # boot then contains epsilon and predict() keeps
+                            # accepting, so stop or the loop never terminates
+                            if this.stack.front.cursor <= before
+                                merge()
+                                return parse_state.accept
+                            end
                             merge()
                         end
                         case parse_state.reject
@@ -861,13 +869,22 @@ class partial_parser_type extends parser_type
             var result = this.match(it.data)
             if result != parse_state.accept
                 if this.eof()
-                    on_eof_hook(this)
+                    var injected = false
+                    if on_eof_hook != null
+                        var before = this.lex.size
+                        on_eof_hook(this)
+                        injected = this.lex.size > before
+                    end
                     this.memo_cache = new hash_map
                     this.ign_cache = new hash_map
                     this.stack.front.cursor = begin_cur
                     this.stack.front.product.nodes = new array
                     it = seq.begin
-                    if this.eof()
+                    # eof() is cursor-based: resetting the cursor below the old
+                    # end makes it false even when the hook injected nothing.
+                    # Retry only if the input actually grew, otherwise the same
+                    # EOF failure repeats forever.
+                    if this.eof() || !injected
                         if this.lex.empty()
                             this.error("Incomplete sentence", {0, 0})
                         else
@@ -1114,13 +1131,18 @@ class generator
             return false
         end
         file_path = path
+        var matched = new array
         foreach it in rules
             var reg = regex.build(it.second.ext)
             if !reg.match(path).empty()
-                return from_stream(it.first, ifs)
+                matched.push_back(it.first)
             end
         end
-        return false
+        if matched.empty()
+            return false
+        end
+        matched.sort([](lhs, rhs)->lhs < rhs)
+        return from_stream(matched[0], ifs)
     end
     function get_errors()
         var err = new array

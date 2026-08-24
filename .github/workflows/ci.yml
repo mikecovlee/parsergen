@@ -199,6 +199,35 @@ jobs:
           echo ""
           echo "=== All integration tests passed ==="
 
+      # ------------------------------------------------------------------ #
+      # 9. Run add_language / ast_dump scripts (pure CovScript path)        #
+      # ------------------------------------------------------------------ #
+      - name: Run pure CovScript scripts
+        shell: bash
+        run: |
+          echo "=== Pure CovScript Scripts ==="
+          fail=0
+          for script in "cpp/test/scripts/test_add_language.csc" \
+                        "cpp/test/scripts/ast_dump_native.csc"; do
+            echo ""
+            echo "--- $script ---"
+            output=$(cs --import-path "${{ github.workspace }}" "$script" tests/test_cases/ecs/v3.ecs 2>&1) || true
+            echo "$output"
+            if echo "$output" | grep -q "PARSE OK"; then
+              echo "  -> PASS"
+            else
+              echo "  -> FAIL (expected 'PARSE OK' in output)"
+              fail=1
+            fi
+          done
+          if [ $fail -ne 0 ]; then
+            echo ""
+            echo "=== SOME SCRIPT TESTS FAILED ==="
+            exit 1
+          fi
+          echo ""
+          echo "=== All pure CovScript scripts passed ==="
+
   cxx:
     name: "C++ / ${{ matrix.os }}"
     runs-on: ${{ matrix.os }}
@@ -318,3 +347,81 @@ jobs:
           Copy-Item tests\ecs_parser.csp cpp\test\cxx_import\
           & $cs --import-path cpp\test\cxx_import cpp\test\scripts\test_dropin_all.csc
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Run CNI script tests (Unix)
+        if: runner.os != 'Windows'
+        shell: bash
+        env:
+          PARSERGEN_IMPL: parsergen_cxx
+        run: |
+          CS="${{ steps.sdk.outputs.cs_home }}/bin/cs"
+          chmod +x "$CS"
+          mkdir -p cpp/test/cxx_import
+          cp cmake-build/unix/parsergen_cxx.cse cpp/test/cxx_import/
+          cp tests/ecs_parser.csp cpp/test/cxx_import/
+
+          echo "=== CNI Script Tests ==="
+          fail=0
+          run_test() {
+            script="$1"; shift
+            echo ""
+            echo "--- $script ---"
+            output=$("$CS" --import-path cpp/test/cxx_import "$script" 2>&1) || true
+            echo "$output"
+            for marker in "$@"; do
+              if echo "$output" | grep -q "$marker"; then
+                echo "  -> PASS ($marker)"
+              else
+                echo "  -> FAIL (missing '$marker')"
+                fail=1
+              fi
+            done
+          }
+          run_test cpp/test/scripts/test_cni_add_language.csc "Failed 0"
+          run_test cpp/test/scripts/test_partial_parser.csc "PARTIAL PARSER OK" "CLEAR HOOK OK"
+          run_test cpp/test/scripts/test_typeid.csc "TYPEID OK"
+          if [ $fail -ne 0 ]; then
+            echo ""
+            echo "=== SOME CNI SCRIPT TESTS FAILED ==="
+            exit 1
+          fi
+          echo ""
+          echo "=== All CNI script tests passed ==="
+
+      - name: Run CNI script tests (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        env:
+          PARSERGEN_IMPL: parsergen_cxx
+        run: |
+          $cs = "${{ steps.sdk.outputs.cs_home }}\bin\cs.exe"
+          New-Item -ItemType Directory -Force -Path cpp\test\cxx_import | Out-Null
+          Copy-Item cmake-build\mingw-w64\parsergen_cxx.cse cpp\test\cxx_import\
+          Copy-Item tests\ecs_parser.csp cpp\test\cxx_import\
+
+          Write-Host "=== CNI Script Tests ==="
+          $fail = $false
+          function Invoke-Test($script, $markers) {
+            Write-Host ""
+            Write-Host "--- $script ---"
+            $output = & $cs --import-path cpp\test\cxx_import $script 2>&1
+            $output | ForEach-Object { Write-Host "$_" }
+            foreach ($m in $markers) {
+              if ($output -join "`n" -match [regex]::Escape($m)) {
+                Write-Host "  -> PASS ($m)"
+              } else {
+                Write-Host "  -> FAIL (missing '$m')"
+                $script:fail = $true
+              }
+            }
+          }
+          Invoke-Test cpp\test\scripts\test_cni_add_language.csc @("Failed 0")
+          Invoke-Test cpp\test\scripts\test_partial_parser.csc @("PARTIAL PARSER OK", "CLEAR HOOK OK")
+          Invoke-Test cpp\test\scripts\test_typeid.csc @("TYPEID OK")
+          if ($fail) {
+            Write-Host ""
+            Write-Host "=== SOME CNI SCRIPT TESTS FAILED ==="
+            exit 1
+          }
+          Write-Host ""
+          Write-Host "=== All CNI script tests passed ==="

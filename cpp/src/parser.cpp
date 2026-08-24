@@ -277,7 +277,15 @@ parse_state parser_type::match(const syntax_t &it)
 				return parse_state::accept;
 			}
 			push_stage("repeat");
+			int before = m_stack.front().cursor;
 			result = match_syntax(std::any_cast<syntax_seq &>(it->data));
+			if (result == parse_state::accept && m_stack.front().cursor <= before) {
+				// Item matched without consuming a token (epsilon). The repeat
+				// boot set then contains epsilon, so predict() keeps accepting:
+				// stop here or the loop never terminates.
+				do_merge();
+				return parse_state::accept;
+			}
 			switch (result) {
 			case parse_state::accept:
 				do_merge();
@@ -516,14 +524,22 @@ parse_state partial_parser_type::match_syntax(const syntax_seq &seq)
 		parse_state result = match(seq[idx]);
 		if (result != parse_state::accept) {
 			if (eof()) {
-				if (on_eof_hook)
+				bool injected = false;
+				if (on_eof_hook) {
+					std::size_t before = m_lex->size();
 					on_eof_hook(*this);
+					injected = m_lex->size() > before;
+				}
 				m_memo_cache.clear();
 				m_ign_cache.clear();
 				m_stack.front().cursor = begin_cur;
 				m_stack.front().product.nodes.clear();
 				idx = static_cast<std::size_t>(-1); // loop's ++idx resets to 0
-				if (eof()) {
+				// eof() is cursor-based: resetting the cursor below the old end
+				// makes it false even when the hook injected nothing. Retry only
+				// if the input actually grew, otherwise the same EOF failure
+				// repeats forever.
+				if (eof() || !injected) {
 					if (m_lex->empty())
 						error("Incomplete sentence", {0, 0});
 					else

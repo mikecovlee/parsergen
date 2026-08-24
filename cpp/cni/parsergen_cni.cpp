@@ -438,18 +438,20 @@ namespace parsergen_cni {
 		for (auto &t : tokens)
 			w->token_buff.push_back(*t.const_val<token_t>());
 
-		if (w->has_hook) {
-			std::weak_ptr<partial_parser_wrapper> weak_w = w;
-			w->parser.on_eof_hook = [weak_w](pg::partial_parser_type &) {
-				auto w = weak_w.lock();
-				if (!w) return;
-				w->pending_tokens.clear();
+		// Always install the wrapper so pending_tokens are drained on every
+		// EOF retry (parity with the CovScript impl where push_tokens writes
+		// the token stream directly). The user hook is only invoked when set.
+		std::weak_ptr<partial_parser_wrapper> weak_w = w;
+		w->parser.on_eof_hook = [weak_w](pg::partial_parser_type &) {
+			auto w = weak_w.lock();
+			if (!w) return;
+			w->pending_tokens.clear();
+			if (w->has_hook)
 				cs::invoke(w->eof_hook, var::make<pparser_wrapper_t>(w));
-				for (auto &t : w->pending_tokens)
-					w->token_buff.push_back(std::move(t));
-				w->pending_tokens.clear();
-			};
-		}
+			for (auto &t : w->pending_tokens)
+				w->token_buff.push_back(std::move(t));
+			w->pending_tokens.clear();
+		};
 		return w->parser.run(gram, w->token_buff);
 	}
 
@@ -492,6 +494,13 @@ namespace parsergen_cni {
 	{
 		for (auto &t : tokens)
 			w->pending_tokens.push_back(*t.const_val<token_t>());
+	}
+
+	// Parity with the CovScript impl: set_eof_hook(null) clears the hook
+	void pparser_clear_eof_hook(pparser_wrapper_t &w)
+	{
+		w->eof_hook = null_pointer;
+		w->has_hook = false;
 	}
 
 	// ---- lex_error factory ----
@@ -684,6 +693,9 @@ namespace parsergen_cni {
 	        type_id(typeid(generator_t)), generator_ext))
 	    .add_var("print_error", make_cni(print_error))
 	    .add_var("print_ast", make_cni(print_ast))
+	    // syntax_tree / token_type are registered as instances, not constructible
+	    // types: scripts only use them as `typeid` tokens
+	    // (`typeid it == typeid parsergen.syntax_tree`), never to construct values
 	    .add_var("syntax_tree", var::make<tree_t>(std::make_shared<pg::syntax_tree>()))
 	    .add_var("token_type", var::make<token_t>(std::make_shared<pg::token_type>()))
 	    .add_var("lex_error", var::make_constant<type_t>(
@@ -751,6 +763,7 @@ namespace parsergen_cni {
 		    .add_var("get_log", make_cni(pparser_get_log))
 		    .add_var("log", make_property_cni(pparser_log))
 		    .add_var("set_eof_hook", make_cni(pparser_set_eof_hook))
+		    .add_var("clear_eof_hook", make_cni(pparser_clear_eof_hook))
 		    .add_var("append_token", make_cni(pparser_push_token))
 		    .add_var("push_tokens", make_cni(pparser_push_tokens));
 

@@ -1,6 +1,8 @@
 #include <parsergen/parsergen.hpp>
 
 #include <cassert>
+#include <cstdio>
+#include <fstream>
 #include <iostream>
 #include <map>
 
@@ -165,6 +167,103 @@ static void test_error_recovery()
 	check("recovery found errors", !parser.get_all_errors().empty());
 }
 
+static void test_recovery_success()
+{
+	std::cout << "--- error recovery (success) ---\n";
+	using namespace pg;
+	using namespace pg::syntax;
+
+	syntax_map_t stx;
+	stx["begin"] = {repeat({ref("stmt")})};
+	stx["stmt"] = {token("id"), term("="), token("num"), token("endl")};
+	stx["ignore"] = {repeat({token("endl")})};
+
+	lexer_type lexer;
+	lexical_t lex = {
+		{"id", "^[a-z]+$"},
+		{"num", "^[0-9]+$"},
+		{"sig", "^(=)$"},
+		{"endl", "^\\n+$"},
+		{"ign", "^[ \\t]+$"},
+		{"bad", "^@$"},
+	};
+	// First stmt is broken ("a @"), the rest recovers at the next endl sync point
+	auto tokens = lexer.run(lex, "x = 1\na @\ny = 2\nz = 3\n");
+
+	recovering_parser_type parser;
+	parser.init(stx);
+	bool ok = parser.parse_with_recovery(tokens);
+	check("recovery ok", ok);
+	check("recovery recorded errors", !parser.get_all_errors().empty());
+	auto ast = parser.production();
+	check("recovery ast not null", ast != nullptr);
+	check("recovery ast root", ast && ast->root == "begin");
+}
+
+static void test_from_file_deterministic()
+{
+	std::cout << "--- from_file deterministic ---\n";
+	using namespace pg;
+	using namespace pg::syntax;
+
+	// Both languages match any path (".*"); "a" is the lexicographic winner
+	grammar gram_a;
+	gram_a.ext = ".*";
+	gram_a.lex = {{"id", "^[a-z]+$"}, {"ign", "^[ \\t\\n]+$"}};
+	gram_a.stx["begin"] = {token("id")};
+
+	grammar gram_b;
+	gram_b.ext = ".*";
+	gram_b.lex = {{"id", "^[a-z]+$"}, {"ign", "^[ \\t\\n]+$"}};
+	gram_b.stx["begin"] = {token("id"), token("id")};
+
+	// Sanity: "b" cannot parse a single-id file, "a" can
+	generator alone;
+	alone.show_prompt = false;
+	alone.add_grammar("b", grammar(gram_b));
+	check("premise: b fails on single id", !alone.from_string("b", "x"));
+
+	std::ofstream ofs("det_test.tmp");
+	ofs << "x\n";
+	ofs.close();
+
+	generator gen;
+	gen.show_prompt = false;
+	gen.add_grammar("b", std::move(gram_b));
+	gen.add_grammar("a", std::move(gram_a));
+
+	bool ok1 = gen.from_file("det_test.tmp");
+	bool ok2 = gen.from_file("det_test.tmp");
+	bool ok3 = gen.from_file("det_test.tmp");
+	std::remove("det_test.tmp");
+
+	check("from_file picks smallest lang", ok1);
+	check("from_file deterministic (2nd)", ok2);
+	check("from_file deterministic (3rd)", ok3);
+	check("from_file ast single id", gen.ast() && gen.ast()->nodes.size() == 1);
+}
+
+static void test_repeat_epsilon_eof()
+{
+	std::cout << "--- repeat epsilon eof ---\n";
+	using namespace pg;
+	using namespace pg::syntax;
+
+	// A repeat whose item may match epsilon (an optional) must terminate at
+	// EOF: the repeat boot set contains epsilon, so a progress-less iteration
+	// would make predict() accept forever.
+	grammar gram;
+	gram.lex = {{"id", "^[a-z]+$"}, {"ign", "^[ \\t\\n]+$"}};
+	gram.stx["begin"] = {repeat({optional({token("id")})})};
+
+	generator gen;
+	gen.show_prompt = false;
+	gen.add_grammar("rep", std::move(gram));
+
+	check("repeat epsilon item at eof", gen.from_string("rep", "x"));
+	check("repeat epsilon item at eof (empty input)", gen.from_string("rep", ""));
+}
+
 int main()
 {
 	std::cout << "=== ParserGen C++ Tests ===\n\n";
@@ -173,6 +272,9 @@ int main()
 	test_tiny_parse();
 	test_empty_input();
 	test_error_recovery();
+	test_recovery_success();
+	test_from_file_deterministic();
+	test_repeat_epsilon_eof();
 
 	std::cout << "\nPassed: " << pass_count << ", Failed: " << fail_count << "\n";
 	return fail_count > 0 ? 1 : 0;

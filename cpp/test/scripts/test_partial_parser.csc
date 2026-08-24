@@ -38,3 +38,16 @@ else
     end
     system.out.println("PARTIAL PARSER FAIL")
 end
+
+# After clear_eof_hook, the EOF retry must not invoke the hook,
+# so the incomplete input fails to parse
+parser.clear_eof_hook()
+hook_called = false
+var ok2 = parser.run(ecs_parser.get_syntax(false), gen.lex_string("ecs-lang", "var x = ", 0))
+system.out.println("hook after clear: " + hook_called)
+system.out.println("parse after clear: " + ok2)
+if !ok2 && !hook_called
+    system.out.println("CLEAR HOOK OK")
+else
+    system.out.println("CLEAR HOOK FAIL")
+end

@@ -118,9 +118,12 @@ parse_state.{accept, reject, eof}
 | `run(stx, tokens)` | 增量解析 |
 | `production()` | 获取 AST |
 | `get_log(n)` | 获取错误 |
-| `set_eof_hook(fn)` | 设置 EOF 回调（fn 接收 parser 自身） |
-| `push_tokens(arr)` | 追加 token 数组（hook 内使用） |
-| `append_token(tok)` | 追加单个 token |
+| `set_eof_hook(fn)` | 设置 EOF 回调（fn 接收 parser 自身）；多次 `run()` 之间持续生效 |
+| `clear_eof_hook()` | 清除 EOF 回调（CovScript 版等价写法 `set_eof_hook(null)`） |
+| `push_tokens(arr)` | 追加 token 数组（EOF 重试时注入） |
+| `append_token(tok)` | 追加单个 token（EOF 重试时注入） |
+
+EOF 重试仅在回调注入了新 token 时才会真正重试；若回调未注入任何 token（或未设置回调），匹配以 `Incomplete sentence` 错误终止，不会无限重试。
 
 ### CovScript legacy
 
@@ -135,8 +138,8 @@ parse_state.{accept, reject, eof}
 | 方法 | 说明 |
 |------|------|
 | `init(stx)` | 初始化语法规则 |
-| `parse_with_recovery(tokens)` | 带恢复解析 |
-| `get_all_errors()` | 获取所有错误 |
+| `parse_with_recovery(tokens)` | 带恢复解析（error 后跳到 `endl`/`;` 同步点继续）。`true` = 输入被完全消耗（干净解析或恢复后完整解析，此时 AST 为**最后成功段**）；`false` = 未能恢复出到 EOF 的完整解析 |
+| `get_all_errors()` | 获取所有错误（含各失败段） |
 
 ## parser_type
 

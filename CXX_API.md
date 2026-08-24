@@ -238,6 +238,10 @@ public:
 };
 ```
 
+解析在 EOF 处失败时调用 `on_eof_hook`（传入 parser 自身），随后清空缓存与当前 stage 的 product，并从当前规则起点重试匹配。典型用法是在 hook 内注入缺失的 token，使解析得以继续。若 hook 未注入任何新 token（或未设置 hook），重试一次后即以 `Incomplete sentence` 错误终止，不会无限重试。
+
+CNI 版（`cpp/cni`）将其封装为 `set_eof_hook(fn)` / `clear_eof_hook()` / `push_tokens(arr)` / `append_token(tok)`：hook 在多次 `run()` 之间持续生效，可用 `clear_eof_hook()` 清除（CovScript 版等价写法为 `set_eof_hook(null)`）；`push_tokens` / `append_token` 注入的 token 在下一次 `run()` 触发 EOF 重试时并入 token 流。
+
 ## recovering_parser_type
 
 ```cpp
@@ -255,6 +259,15 @@ private:
     int find_sync_after(int pos);
 };
 ```
+
+遇到错误后跳到同步点（`endl` 或 `;`）继续解析，一次遍历报告多处错误。
+
+`parse_with_recovery` 返回语义：
+
+| 返回值 | 含义 |
+|--------|------|
+| `true` | 输入被完全消耗 —— 或为一次干净解析，或为错误恢复后的完整解析。恢复情形下 `production()` 返回**最后一个成功段**的 AST，全部段的错误在 `get_all_errors()` |
+| `false` | 未能恢复出到 EOF 的完整 accept（重试达到上限 100，或 error 之后没有同步点且重试仍失败）。错误在 `get_all_errors()` |
 
 ## generator
 

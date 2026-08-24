@@ -114,6 +114,32 @@ block
     assert_true("repeat: zero matches ok", p.run(repeat_syntax, tokens))
 end
 
+system.out.println("--- repeat epsilon eof ---")
+
+# A repeat whose item may match epsilon (an optional) used to loop forever
+# at EOF: the repeat boot set contains epsilon, so predict() kept accepting
+# while the item consumed no token. The repeat must stop after such an item.
+@begin
+var repeat_eps_syntax = {
+    "begin" : {syntax.repeat(syntax.optional(syntax.token("id")))},
+    "ignore" : {syntax.repeat(syntax.token("endl"))}
+}.to_hash_map()
+@end
+
+block
+    var lexer = new parsergen.lexer_type
+    var tokens = lexer.run(test_lex, "x")
+    var p = new parsergen.parser_type
+    assert_true("repeat: epsilon item at eof terminates", p.run(repeat_eps_syntax, tokens))
+end
+
+block
+    var lexer = new parsergen.lexer_type
+    var tokens = lexer.run(test_lex, "")
+    var p = new parsergen.parser_type
+    assert_true("repeat: epsilon item at eof (empty input)", p.run(repeat_eps_syntax, tokens))
+end
+
 system.out.println("--- optional ---")
 
 @begin
