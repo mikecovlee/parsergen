@@ -179,11 +179,19 @@ class lexer_type
         pos[0] = 0
         pos[2] = 0
         data = text
+        var clex = new hash_map
+        foreach it in lexical
+            if typeid it.second == typeid ""
+                clex[it.first] = regex.build_optimize(it.second)
+            else
+                clex[it.first] = it.second
+            end
+        end
         while pos[2] != data.size
             var ch = data[pos[2]]
             if lexical_set.empty()
                 var nbuff = to_string(ch)
-                foreach it in lexical
+                foreach it in clex
                     if !it.second.match(nbuff).empty()
                         lexical_set.insert(it.first)
                     end
@@ -199,7 +207,7 @@ class lexer_type
                 var nbuff = buff + ch
                 var nset = new hash_set
                 foreach it in lexical_set
-                    if lexical[it].match(nbuff).empty()
+                    if clex[it].match(nbuff).empty()
                         nset.insert(it)
                     end
                 end
