@@ -79,7 +79,7 @@ parse_state.{accept, reject, eof}
 | 方法 | 说明 |
 |------|------|
 | `add_language(lang, coding, gram)` | 注册语法 + 编码（"ascii"/"utf8"/"gbk"） |
-| `from_file(path)` | 解析文件 |
+| `from_file(path)` | 解析文件（按已注册文法的 `ext` 选语言；`ext` 为**整条路径的全匹配**正则，须完整匹配 `path`） |
 | `from_string(lang, str)` | 解析字符串 |
 | `from_stream(lang, stream)` | 解析流（cs::istream） |
 | `get_ast()` | 获取 AST |
@@ -91,7 +91,7 @@ parse_state.{accept, reject, eof}
 | `set_show_prompt(v)` | 设置错误提示开关 |
 | `set_stop_on_error(v)` | 设置遇错即停 |
 | `set_enable_log(v)` | 设置解析日志 |
-| `lex_string(lang, text, start_line)` | 独立词法（REPL 用） |
+| `lex_string(lang, text, start_line)` | 独立词法（REPL 用）；`lang` 未注册时返回 `null` |
 
 ### CovScript legacy
 
@@ -164,7 +164,7 @@ EOF 重试仅在回调注入了新 token 时才会真正重试；若回调未注
 
 | 方法 | 说明 |
 |------|------|
-| `run(lexical, text)` | 执行词法 |
+| `run(lexical, text)` | 执行词法；`lexical` 值为字符串 patterns（可移植，两边一致），CovScript 侧另兼容已编译 regex 对象 |
 | `get_error_log()` | 获取词法错误 |
 
 ### CovScript legacy

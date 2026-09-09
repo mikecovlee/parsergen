@@ -48,6 +48,8 @@ using token_list_t = std::vector<token_type>;
 using regex_handle_t = std::shared_ptr<void>;
 std::string regex_pattern(const regex_handle_t &reg);
 bool regex_match(const std::string &pattern, const std::string &text);
+// 全串（锚定）匹配：整段 text 必须匹配 pattern（与 CovScript 参考 from_file 的 ext 选择一致）
+bool regex_match_full(const std::string &pattern, const std::string &text);
 
 struct grammar {
     std::string ext = ".*";
@@ -281,10 +283,11 @@ public:
     void add_grammar(const std::string &lang, grammar gram);
     void add_language(const std::string &lang, const std::string &coding, grammar gram);
     bool from_string(const std::string &lang, const std::string &str);
-    bool from_file(const std::string &path);
+    bool from_file(const std::string &path);   // 按 ext 选语言：ext 为整条路径的全匹配（regex_match_full）
     bool from_stream(const std::string &lang, std::istream &stream);
 
-    token_list_t lex_string(const std::string &lang, const std::string &text, int start_line);
+    // lang 未注册时返回 std::nullopt（对应 CovScript 参考返回的 null）
+    std::optional<token_list_t> lex_string(const std::string &lang, const std::string &text, int start_line);
     std::vector<lex_error> get_lex_errors() const;
 
     std::shared_ptr<syntax_tree> ast() const;
