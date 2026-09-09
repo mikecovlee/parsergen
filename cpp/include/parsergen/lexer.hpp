@@ -18,6 +18,9 @@ using token_list_t = std::vector<token_type>;
 using regex_handle_t = std::shared_ptr<void>;
 std::string regex_pattern(const regex_handle_t &reg);
 bool regex_match(const std::string &pattern, const std::string &text);
+// Full-string (anchored) match: the whole text must match the pattern.
+// Mirrors the CovScript reference `from_file` ext selection.
+bool regex_match_full(const std::string &pattern, const std::string &text);
 
 struct grammar {
 	std::string ext = ".*";

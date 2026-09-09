@@ -562,13 +562,15 @@ namespace parsergen_cni {
 		g->add_language(lang, coding, *gram);
 	}
 
-	array gen_lex_string(generator_t &g, const string &lang, const string &text, numeric start_line)
+	var gen_lex_string(generator_t &g, const string &lang, const string &text, numeric start_line)
 	{
 		auto tokens = g->lex_string(lang, text, start_line.as_integer());
+		if (!tokens)
+			return null_pointer;
 		array arr;
-		for (auto &tok : tokens)
+		for (auto &tok : *tokens)
 			arr.push_back(var::make<token_t>(std::make_shared<pg::token_type>(tok)));
-		return arr;
+		return var::make<array>(std::move(arr));
 	}
 
 	array gen_get_lex_errors(generator_t &g)

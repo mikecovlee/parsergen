@@ -13,6 +13,12 @@ bool regex_match(const std::string &pattern, const std::string &text)
 	auto reg = std::make_shared<pcre2_regex>(pattern);
 	return !pcre2_regex_match(reg, text, 0).empty();
 }
+
+bool regex_match_full(const std::string &pattern, const std::string &text)
+{
+	auto reg = std::make_shared<pcre2_regex>(pattern);
+	return !pcre2_regex_match(reg, text, PCRE2_ANCHORED | PCRE2_ENDANCHORED).empty();
+}
 } // namespace pg
 
 struct pg::lexer_type::compiled_regex {

@@ -168,7 +168,7 @@ bool generator::from_file(const std::string &path)
 {
 	std::vector<std::string> matched;
 	for (auto &[lang, gram] : m_rules) {
-		if (regex_match(gram.ext, path))
+		if (regex_match_full(gram.ext, path))
 			matched.push_back(lang);
 	}
 	if (matched.empty())
@@ -197,11 +197,11 @@ bool generator::from_file(const std::string &path)
 	return priv_run(matched.front());
 }
 
-token_list_t generator::lex_string(const std::string &lang, const std::string &text, int start_line)
+std::optional<token_list_t> generator::lex_string(const std::string &lang, const std::string &text, int start_line)
 {
 	auto it = m_rules.find(lang);
 	if (it == m_rules.end())
-		return {};
+		return std::nullopt;
 	auto &gram = it->second;
 
 	std::string coding;

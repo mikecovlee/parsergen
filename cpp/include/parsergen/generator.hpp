@@ -3,6 +3,7 @@
 #include <parsergen/parser.hpp>
 
 #include <memory>
+#include <optional>
 #include <string>
 #include <unordered_map>
 #include <vector>
@@ -35,7 +36,9 @@ public:
 	bool from_file(const std::string &path);
 	bool from_stream(const std::string &lang, std::istream &stream);
 
-	token_list_t lex_string(const std::string &lang, const std::string &text, int start_line);
+	// Returns nullopt when the language is not registered (matches the
+	// CovScript reference, which returns null).
+	std::optional<token_list_t> lex_string(const std::string &lang, const std::string &text, int start_line);
 	std::vector<lex_error> get_lex_errors() const;
 
 	std::shared_ptr<syntax_tree> ast() const

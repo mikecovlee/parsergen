@@ -134,6 +134,8 @@ check("invalid", !gen.from_string("ecs-lang", "var = \n"))
 var tokens = gen.lex_string("ecs-lang", "var x = 1\n", 0)
 check("lex_string", tokens != null && !tokens.empty())
 check("lex_errors empty", gen.get_lex_errors().empty())
+# unknown language -> null (parity with the CovScript reference)
+check("lex_string unknown lang is null", gen.lex_string("no-such-lang", "var x = 1\n", 0) == null)
 
 system.out.println("CNI add_language: Passed " + pass + ", Failed " + fail)
 if fail > 0

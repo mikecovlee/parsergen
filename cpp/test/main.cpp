@@ -243,6 +243,51 @@ static void test_from_file_deterministic()
 	check("from_file ast single id", gen.ast() && gen.ast()->nodes.size() == 1);
 }
 
+static void test_from_file_full_match()
+{
+	std::cout << "--- from_file full-match ext ---\n";
+	using namespace pg;
+	using namespace pg::syntax;
+
+	// ext is a full-path (anchored) regex: only a path that matches the WHOLE
+	// ext may select the language. "xfoo.txt" contains "foo.txt" as a substring
+	// but does not fully match it, so it must be rejected (an unanchored search
+	// would wrongly accept it).
+	grammar gram;
+	gram.ext = "foo\\.txt";
+	gram.lex = {{"id", "^[a-z]+$"}, {"ign", "^[ \\t\\n]+$"}};
+	gram.stx["begin"] = {token("id")};
+
+	generator gen;
+	gen.show_prompt = false;
+	gen.add_grammar("f", std::move(gram));
+
+	std::ofstream f1("foo.txt");
+	f1 << "x\n";
+	f1.close();
+	std::ofstream f2("xfoo.txt");
+	f2 << "x\n";
+	f2.close();
+
+	check("full-match accepts 'foo.txt'", gen.from_file("foo.txt"));
+	check("full-match ast single id", gen.ast() && gen.ast()->nodes.size() == 1);
+	check("full-match rejects 'xfoo.txt'", !gen.from_file("xfoo.txt"));
+
+	std::remove("foo.txt");
+	std::remove("xfoo.txt");
+}
+
+static void test_lex_string_unknown()
+{
+	std::cout << "--- lex_string unknown language ---\n";
+	using namespace pg;
+	generator gen;
+	gen.show_prompt = false;
+	// No language registered: lex_string must report "no such language"
+	// (CovScript reference returns null here).
+	check("lex_string unknown lang -> nullopt", !gen.lex_string("nope", "x", 0).has_value());
+}
+
 static void test_repeat_epsilon_eof()
 {
 	std::cout << "--- repeat epsilon eof ---\n";
@@ -274,6 +319,8 @@ int main()
 	test_error_recovery();
 	test_recovery_success();
 	test_from_file_deterministic();
+	test_from_file_full_match();
+	test_lex_string_unknown();
 	test_repeat_epsilon_eof();
 
 	std::cout << "\nPassed: " << pass_count << ", Failed: " << fail_count << "\n";
