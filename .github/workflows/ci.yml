@@ -206,12 +206,18 @@ jobs:
         shell: bash
         run: |
           echo "=== Pure CovScript Scripts ==="
+          # Combine the CSC parsergen (repo root) and ecs_parser (tests/) into a
+          # single import dir so one --import-path resolves both (cross-platform
+          # safe; avoids OS-specific path separators).
+          mkdir -p cpp/test/pure_import
+          cp parsergen.csp cpp/test/pure_import/
+          cp tests/ecs_parser.csp cpp/test/pure_import/
           fail=0
           for script in "cpp/test/scripts/test_add_language.csc" \
                         "cpp/test/scripts/ast_dump_native.csc"; do
             echo ""
             echo "--- $script ---"
-            output=$(cs --import-path "${{ github.workspace }}" "$script" tests/test_cases/ecs/v3.ecs 2>&1) || true
+            output=$(cs --import-path cpp/test/pure_import "$script" tests/test_cases/ecs/v3.ecs 2>&1) || true
             echo "$output"
             if echo "$output" | grep -q "PARSE OK"; then
               echo "  -> PASS"

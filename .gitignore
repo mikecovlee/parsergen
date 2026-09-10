@@ -14,6 +14,7 @@ cmake-build/
 cpp/test/cxx_import/parsergen_cxx.cse
 cpp/test/cxx_import/parsergen.cse
 cpp/test/cxx_import/ecs_parser.csp
+cpp/test/pure_import/
 cpp/test/big.ecs
 cpp/test/med.ecs
 cpp/test/large.ecs
