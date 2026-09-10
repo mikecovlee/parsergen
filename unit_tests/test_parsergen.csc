@@ -173,6 +173,32 @@ block
 end
 
 system.out.println("")
+system.out.println("=== String Lexical Patterns in lexer_type.run ===")
+
+@begin
+var tiny_lex_str = {
+    "id"  : "^[a-z]+$",
+    "num" : "^[0-9]+$",
+    "sig" : "^(\\+|-|=|\\(|\\)|;)$",
+    "ign" : "^\\s+$",
+    "err" : "^:$"
+}.to_hash_map()
+@end
+
+block
+    # run() now accepts string patterns directly (portable across parsergen /
+    # parsergen_cxx); previously CovScript required pre-compiled regex objects.
+    var lexer = new parsergen.lexer_type
+    var tokens = lexer.run(tiny_lex_str, "ab = 42")
+    assert_true("str-lex: tokenized", !tokens.empty())
+    assert_eq("str-lex: token count", tokens.size, 3)
+    assert_eq("str-lex: [0] id", tokens[0].type, "id")
+    assert_eq("str-lex: [1] sig", tokens[1].type, "sig")
+    assert_eq("str-lex: [2] num", tokens[2].type, "num")
+    assert_eq("str-lex: no lex errors", lexer.get_error_log().size, 0)
+end
+
+system.out.println("")
 system.out.println("Passed: " + test_pass + ", Failed: " + test_fail)
 if test_fail > 0
     system.exit(1)

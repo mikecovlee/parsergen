@@ -1,21 +1,35 @@
-import parsergen, regex
+var parsergen = context.import(runtime.get_import_path(), "parsergen_cxx")
+
+context.import(runtime.get_import_path(), "ecs_parser")
 import ecs_parser
 
-constant syntax = parsergen.syntax
+var syntax = parsergen.syntax
 
+var test_pass = 0
+var test_fail = 0
+
+function check(name, cond)
+    if cond
+        ++test_pass
+    else
+        ++test_fail
+        system.out.println("[FAIL] " + name)
+    end
+end
+
+# === Tiny grammar ===
 @begin
-var tiny_lexical = {
-    "id"  : regex.build("^[A-Za-z_]\\w*$"),
-    "num" : regex.build("^[0-9]+$"),
-    "sig" : regex.build("^(\\+|-|\\*|/|%|=|<|>|\\(|\\)|;|:=?)$"),
-    "ign" : regex.build("^(\\s+|\\{[^\\}]*\\}?)$"),
-    "err" : regex.build("^:$")
+var tiny_lex = {
+    "id"  : "^[A-Za-z_]\\w*$",
+    "num" : "^[0-9]+$",
+    "sig" : "^(\\+|-|\\*|/|%|=|<|>|\\(|\\)|;|:=?)$",
+    "ign" : "^(\\s+|\\{[^\\}]*\\}?)$",
+    "err" : "^:$"
 }.to_hash_map()
 @end
 
 @begin
-var tiny_syntax = {
-    # Beginning of Parsing
+var tiny_stx = {
     "begin" : {syntax.ref("stmts")},
     "stmts" : {syntax.ref("statement"), syntax.repeat(syntax.term(";"), syntax.ref("statement")), syntax.optional(syntax.term(";"))},
     "statement" : {syntax.cond_or(
@@ -48,19 +62,19 @@ var tiny_syntax = {
 }.to_hash_map()
 @end
 
+# === C- grammar ===
 @begin
-var cminus_lexical = {
-    "id"  : regex.build("^[A-Za-z_]\\w*$"),
-    "num" : regex.build("^[0-9]+$"),
-    "sig" : regex.build("^(\\+|-|\\*|/|<|<=|>|>=|=|~=?|==|;|,|\\(|\\)|\\[|\\]|\\{|\\})$"),
-    "ign" : regex.build("^(\\s+|/|/\\*([^\\*]|\\*(?!/))*(\\*/)?)$"),
-    "err" : regex.build("^~$")
+var cminus_lex = {
+    "id"  : "^[A-Za-z_]\\w*$",
+    "num" : "^[0-9]+$",
+    "sig" : "^(\\+|-|\\*|/|<|<=|>|>=|=|~=?|==|;|,|\\(|\\)|\\[|\\]|\\{|\\})$",
+    "ign" : "^(\\s+|/|/\\*([^\\*]|\\*(?!/))*(\\*/)?)$",
+    "err" : "^~$"
 }.to_hash_map()
 @end
 
 @begin
-var cminus_syntax = {
-    # Beginning of Parsing
+var cminus_stx = {
     "begin" : {
         syntax.ref("declaration"), syntax.repeat(syntax.ref("declaration"))
     },
@@ -162,23 +176,24 @@ var cminus_syntax = {
     )},
     "args" : {
         syntax.ref("expression"), syntax.repeat(syntax.term(","), syntax.ref("expression"))
-    } 
+    }
+}.to_hash_map()
+@end
+
+# === JSON grammar ===
+@begin
+var json_lex = {
+    "val" : "^\\w+$",
+    "num" : "^[0-9]+\\.?([0-9]+)?$",
+    "sig" : "^(:|,|\\[|\\]|\\{|\\})$",
+    "str" : "^(\"|\"([^\"]|\\\\\")*\"?)$",
+    "ign" : "^\\s+$",
+    "err" : "^\"$"
 }.to_hash_map()
 @end
 
 @begin
-var json_lexical = {
-    "val" : regex.build("^\\w+$"),
-    "num" : regex.build("^[0-9]+\\.?([0-9]+)?$"),
-    "sig" : regex.build("^(:|,|\\[|\\]|\\{|\\})$"),
-    "str" : regex.build("^(\"|\"([^\"]|\\\\\")*\"?)$"),
-    "ign" : regex.build("^\\s+$"),
-    "err" : regex.build("^\"$")
-}.to_hash_map()
-@end
-
-@begin
-var json_syntax = {
+var json_stx = {
     "begin" : {syntax.cond_or(
         {syntax.ref("object")},
         {syntax.ref("array")}
@@ -210,51 +225,40 @@ var json_syntax = {
 }.to_hash_map()
 @end
 
-var tiny_grammar = new parsergen.grammar
-var cminus_grammar = new parsergen.grammar
-var json_grammar = new parsergen.grammar
-var main = new parsergen.generator
+# === Setup generator ===
+var gen = new parsergen.generator
+gen.set_show_prompt(false)
+gen.set_stop_on_error(false)
+gen.add_language("tiny", "ascii", parsergen.make_grammar_from(".*\\.tny", tiny_lex, tiny_stx))
+gen.add_language("c-", "ascii", parsergen.make_grammar_from(".*\\.c-", cminus_lex, cminus_stx))
+gen.add_language("json", "ascii", parsergen.make_grammar_from(".*\\.json", json_lex, json_stx))
+gen.add_language("ecs-lang", "ascii", ecs_parser.grammar)
 
-tiny_grammar.lex = tiny_lexical
-tiny_grammar.stx = tiny_syntax
-tiny_grammar.ext = ".*\\.tny"
+# === Run all test cases ===
+var base = "tests/test_cases/"
 
-cminus_grammar.lex = cminus_lexical
-cminus_grammar.stx = cminus_syntax
-cminus_grammar.ext = ".*\\.c-"
+check("tiny/t1.tny", gen.from_file(base + "tiny/t1.tny"))
+check("tiny/t2.tny", gen.from_file(base + "tiny/t2.tny"))
+check("tiny/t3.tny", gen.from_file(base + "tiny/t3.tny"))
+check("cminus/c1.c-", gen.from_file(base + "cminus/c1.c-"))
+check("cminus/c2.c-", gen.from_file(base + "cminus/c2.c-"))
+check("cminus/c3.c-", gen.from_file(base + "cminus/c3.c-"))
+check("json/j1.json", gen.from_file(base + "json/j1.json"))
+check("json/j2.json", gen.from_file(base + "json/j2.json"))
+check("json/j3.json", gen.from_file(base + "json/j3.json"))
+check("ecs/v1.ecs", gen.from_file(base + "ecs/v1.ecs"))
+check("ecs/v2.ecs", gen.from_file(base + "ecs/v2.ecs"))
+check("ecs/v3.ecs", gen.from_file(base + "ecs/v3.ecs"))
+check("ecs/v4.ecs", gen.from_file(base + "ecs/v4.ecs"))
 
-json_grammar.lex = json_lexical
-json_grammar.stx = json_syntax
-json_grammar.ext = ".*\\.json"
+# === Regression: get_ast() null semantics on parse failure ===
+check("null-ast: valid parse succeeds", gen.from_string("tiny", "x := 1;"))
+check("null-ast: valid parse get_ast() != null", gen.get_ast() != null)
+check("null-ast: failed parse rejected", !gen.from_string("tiny", "x := ;"))
+check("null-ast: failed parse get_ast() == null", gen.get_ast() == null)
 
-main.add_grammar("tiny", tiny_grammar)
-main.add_grammar("c-", cminus_grammar)
-main.add_grammar("json", json_grammar)
-main.add_language("ecs-lang", "ascii", ecs_parser.grammar)
-
-main.stop_on_error = false
-# main.enable_log = true
-
-var time_start = runtime.time()
-main.from_file(context.cmd_args.at(1))
-system.out.println("Compile Time: " + (runtime.time() - time_start)/1000 + "s")
-
-function compress_ast(n)
-    foreach it in n.nodes
-        while typeid it == typeid parsergen.syntax_tree && it.nodes.size == 1
-            it = it.nodes.front
-        end
-        if typeid it == typeid parsergen.syntax_tree
-            compress_ast(it)
-        else
-            if it.type == "endl"
-                it.data = "\\n"
-            end
-        end
-    end
-end
-
-if main.enable_log && main.ast != null
-    compress_ast(main.ast)
-    parsergen.print_ast(main.ast)
+system.out.println("")
+system.out.println("Drop-in replace: Passed " + test_pass + ", Failed " + test_fail)
+if test_fail > 0
+    system.exit(1)
 end

@@ -5,6 +5,8 @@
 #   2. Configures cspkg to use the bundled package repository
 #   3. Installs remote dependencies (regex) and builds parsergen from local source
 #   4. Runs unit tests and integration tests
+#   5. Builds the C++ implementation (libparsergen + parsergen_cxx.cse)
+#   6. Runs C++ unit tests and drop-in replace tests
 
 name: CI
 
@@ -131,11 +133,8 @@ jobs:
           if [ "${{ runner.os }}" != "Windows" ]; then
             chmod -R +x "$COVSCRIPT_HOME/bin/"
           fi
-          # Initialize cspkg
+          # Install remote dependencies (regex, etc.)
           cspkg install --import --yes
-          # Build and install local packages from csbuild/
-          cspkg build . --install --yes
-          # Fix dependencies
           cspkg install --fix --yes
           echo ""
           echo "=== Installed packages ==="
@@ -199,3 +198,236 @@ jobs:
           fi
           echo ""
           echo "=== All integration tests passed ==="
+
+      # ------------------------------------------------------------------ #
+      # 9. Run add_language / ast_dump scripts (pure CovScript path)        #
+      # ------------------------------------------------------------------ #
+      - name: Run pure CovScript scripts
+        shell: bash
+        run: |
+          echo "=== Pure CovScript Scripts ==="
+          # Combine the CSC parsergen (repo root) and ecs_parser (tests/) into a
+          # single import dir so one --import-path resolves both (cross-platform
+          # safe; avoids OS-specific path separators).
+          mkdir -p cpp/test/pure_import
+          cp parsergen.csp cpp/test/pure_import/
+          cp tests/ecs_parser.csp cpp/test/pure_import/
+          fail=0
+          for script in "cpp/test/scripts/test_add_language.csc" \
+                        "cpp/test/scripts/ast_dump_native.csc"; do
+            echo ""
+            echo "--- $script ---"
+            output=$(cs --import-path cpp/test/pure_import "$script" tests/test_cases/ecs/v3.ecs 2>&1) || true
+            echo "$output"
+            if echo "$output" | grep -q "PARSE OK"; then
+              echo "  -> PASS"
+            else
+              echo "  -> FAIL (expected 'PARSE OK' in output)"
+              fail=1
+            fi
+          done
+          if [ $fail -ne 0 ]; then
+            echo ""
+            echo "=== SOME SCRIPT TESTS FAILED ==="
+            exit 1
+          fi
+          echo ""
+          echo "=== All pure CovScript scripts passed ==="
+
+  cxx:
+    name: "C++ / ${{ matrix.os }}"
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, macos-15, windows-2022]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          submodules: recursive
+
+      - name: Set platform identifiers
+        id: platform
+        shell: bash
+        run: |
+          case "${{ runner.os }}" in
+            Linux)   echo "os=ubuntu" >> "$GITHUB_OUTPUT"
+                     echo "arch=x86_64" >> "$GITHUB_OUTPUT" ;;
+            macOS)   echo "os=macos" >> "$GITHUB_OUTPUT"
+                     echo "arch=arm64" >> "$GITHUB_OUTPUT" ;;
+            Windows) echo "os=windows" >> "$GITHUB_OUTPUT"
+                     echo "arch=x86_64" >> "$GITHUB_OUTPUT" ;;
+          esac
+
+      - name: Download CovScript SDK
+        id: sdk
+        shell: bash
+        run: |
+          OS="${{ steps.platform.outputs.os }}"
+          ARCH="${{ steps.platform.outputs.arch }}"
+          BASE="https://github.com/covscript/csbuild/releases/download/${OS}-schedule"
+          COV="covscript-${OS}-${ARCH}-nightly.7z"
+
+          echo "Downloading ${COV}..."
+          curl -fsSL -o covscript.7z "${BASE}/${COV}"
+          7z x covscript.7z -y
+          mv build covscript-home
+
+          CS_HOME="${{ github.workspace }}/covscript-home"
+          CS_HOME="${CS_HOME//\\//}"
+          echo "cs_home=${CS_HOME}" >> "$GITHUB_OUTPUT"
+
+      - name: Setup MSYS2
+        if: runner.os == 'Windows'
+        id: msys2
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: UCRT64
+          update: true
+          install: >-
+            mingw-w64-ucrt-x86_64-toolchain
+            mingw-w64-ucrt-x86_64-cmake
+            mingw-w64-ucrt-x86_64-make
+
+      - name: Build C++ library and CNI (Unix)
+        if: runner.os != 'Windows'
+        shell: bash
+        env:
+          CS_DEV_PATH: ${{ steps.sdk.outputs.cs_home }}/
+        run: |
+          mkdir -p cmake-build/unix
+          cd cmake-build/unix
+          cmake -G "Unix Makefiles" ../../cpp
+          cmake --build . --parallel 4
+
+      - name: Build C++ library and CNI (Windows)
+        if: runner.os == 'Windows'
+        shell: bash
+        env:
+          MSYS2_LOCATION: ${{ steps.msys2.outputs.msys2-location }}
+        run: |
+          export PATH="${{ steps.msys2.outputs.msys2-location }}/ucrt64/bin:${PATH}"
+          export CS_DEV_PATH="$(cygpath -u "${{ steps.sdk.outputs.cs_home }}")/"
+          mkdir -p cmake-build/mingw-w64
+          cd cmake-build/mingw-w64
+          cmake -G "MinGW Makefiles" ../../cpp
+          cmake --build . --parallel 4
+
+      - name: Run C++ unit tests (Unix)
+        if: runner.os != 'Windows'
+        shell: bash
+        run: |
+          ./cmake-build/unix/parsergen_test
+
+      - name: Run C++ unit tests (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          & cmake-build\mingw-w64\parsergen_test.exe
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Run drop-in replace tests (Unix)
+        if: runner.os != 'Windows'
+        shell: bash
+        env:
+          PARSERGEN_IMPL: parsergen_cxx
+        run: |
+          CS="${{ steps.sdk.outputs.cs_home }}/bin/cs"
+          chmod +x "$CS"
+          mkdir -p cpp/test/cxx_import
+          cp cmake-build/unix/parsergen_cxx.cse cpp/test/cxx_import/
+          cp tests/ecs_parser.csp cpp/test/cxx_import/
+          "$CS" --import-path cpp/test/cxx_import cpp/test/scripts/test_dropin_all.csc
+
+      - name: Run drop-in replace tests (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        env:
+          PARSERGEN_IMPL: parsergen_cxx
+        run: |
+          $cs = "${{ steps.sdk.outputs.cs_home }}\bin\cs.exe"
+          New-Item -ItemType Directory -Force -Path cpp\test\cxx_import | Out-Null
+          Copy-Item cmake-build\mingw-w64\parsergen_cxx.cse cpp\test\cxx_import\
+          Copy-Item tests\ecs_parser.csp cpp\test\cxx_import\
+          & $cs --import-path cpp\test\cxx_import cpp\test\scripts\test_dropin_all.csc
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Run CNI script tests (Unix)
+        if: runner.os != 'Windows'
+        shell: bash
+        env:
+          PARSERGEN_IMPL: parsergen_cxx
+        run: |
+          CS="${{ steps.sdk.outputs.cs_home }}/bin/cs"
+          chmod +x "$CS"
+          mkdir -p cpp/test/cxx_import
+          cp cmake-build/unix/parsergen_cxx.cse cpp/test/cxx_import/
+          cp tests/ecs_parser.csp cpp/test/cxx_import/
+
+          echo "=== CNI Script Tests ==="
+          fail=0
+          run_test() {
+            script="$1"; shift
+            echo ""
+            echo "--- $script ---"
+            output=$("$CS" --import-path cpp/test/cxx_import "$script" 2>&1) || true
+            echo "$output"
+            for marker in "$@"; do
+              if echo "$output" | grep -q "$marker"; then
+                echo "  -> PASS ($marker)"
+              else
+                echo "  -> FAIL (missing '$marker')"
+                fail=1
+              fi
+            done
+          }
+          run_test cpp/test/scripts/test_cni_add_language.csc "Failed 0"
+          run_test cpp/test/scripts/test_partial_parser.csc "PARTIAL PARSER OK" "CLEAR HOOK OK"
+          run_test cpp/test/scripts/test_typeid.csc "TYPEID OK"
+          if [ $fail -ne 0 ]; then
+            echo ""
+            echo "=== SOME CNI SCRIPT TESTS FAILED ==="
+            exit 1
+          fi
+          echo ""
+          echo "=== All CNI script tests passed ==="
+
+      - name: Run CNI script tests (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        env:
+          PARSERGEN_IMPL: parsergen_cxx
+        run: |
+          $cs = "${{ steps.sdk.outputs.cs_home }}\bin\cs.exe"
+          New-Item -ItemType Directory -Force -Path cpp\test\cxx_import | Out-Null
+          Copy-Item cmake-build\mingw-w64\parsergen_cxx.cse cpp\test\cxx_import\
+          Copy-Item tests\ecs_parser.csp cpp\test\cxx_import\
+
+          Write-Host "=== CNI Script Tests ==="
+          $fail = $false
+          function Invoke-Test($script, $markers) {
+            Write-Host ""
+            Write-Host "--- $script ---"
+            $output = & $cs --import-path cpp\test\cxx_import $script 2>&1
+            $output | ForEach-Object { Write-Host "$_" }
+            foreach ($m in $markers) {
+              if ($output -join "`n" -match [regex]::Escape($m)) {
+                Write-Host "  -> PASS ($m)"
+              } else {
+                Write-Host "  -> FAIL (missing '$m')"
+                $script:fail = $true
+              }
+            }
+          }
+          Invoke-Test cpp\test\scripts\test_cni_add_language.csc @("Failed 0")
+          Invoke-Test cpp\test\scripts\test_partial_parser.csc @("PARTIAL PARSER OK", "CLEAR HOOK OK")
+          Invoke-Test cpp\test\scripts\test_typeid.csc @("TYPEID OK")
+          if ($fail) {
+            Write-Host ""
+            Write-Host "=== SOME CNI SCRIPT TESTS FAILED ==="
+            exit 1
+          }
+          Write-Host ""
+          Write-Host "=== All CNI script tests passed ==="
