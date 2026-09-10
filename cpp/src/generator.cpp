@@ -229,10 +229,10 @@ std::optional<token_list_t> generator::lex_string(const std::string &lang, const
 std::vector<lex_error> generator::get_lex_errors() const
 {
 	if (m_lexer)
-	return m_lexer->error_log;
+		return m_lexer->error_log;
 	if (m_unicode_lexer)
 		return m_unicode_lexer->error_log;
-		return {};
+	return {};
 	}
 
 std::vector<parse_error> generator::get_errors()
