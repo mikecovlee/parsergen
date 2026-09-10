@@ -113,8 +113,8 @@ public:
 	bool is_identifier(char32_t ch) override
 	{
 		if (ch & gbk_impl::u32_blck_begin)
-		return (ch >= 0xB0A1 && ch <= 0xF7FE) || (ch >= 0x8140 && ch <= 0xA0FE) ||
-		       (ch >= 0xAA40 && ch <= 0xFEA0) || ch == 0xA996;
+			return (ch >= 0xB0A1 && ch <= 0xF7FE) || (ch >= 0x8140 && ch <= 0xA0FE) ||
+			       (ch >= 0xAA40 && ch <= 0xFEA0) || ch == 0xA996;
 		return ch == '_' || std::iswalnum(ch);
 	}
 };

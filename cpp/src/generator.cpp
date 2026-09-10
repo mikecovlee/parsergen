@@ -139,8 +139,6 @@ bool generator::from_string(const std::string &lang, const std::string &str)
 	std::istringstream stream(m_input);
 	std::string line;
 	while (std::getline(stream, line)) {
-		if (!line.empty() && line.back() == '\r')
-			line.pop_back();
 		m_code_buff.push_back(line);
 	}
 	m_code_buff.push_back("");
@@ -203,6 +201,9 @@ std::optional<token_list_t> generator::lex_string(const std::string &lang, const
 	if (it == m_rules.end())
 		return std::nullopt;
 	auto &gram = it->second;
+
+	m_lexer.reset();
+	m_unicode_lexer.reset();
 
 	std::string coding;
 	auto cit = m_lang_codings.find(lang);

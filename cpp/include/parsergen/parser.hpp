@@ -49,7 +49,7 @@ protected:
 
 	std::vector<parse_error> m_error_log;
 	int m_max_cursor = 0;
-	int m_max_prediction_pass = 20;
+	static constexpr int m_max_prediction_pass = 20;
 	predict_cache_t m_predict_cache;
 	std::shared_ptr<bootset_type> m_ign_bootset;
 	bool m_on_ign = false;

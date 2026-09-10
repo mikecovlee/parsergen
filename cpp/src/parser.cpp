@@ -5,6 +5,8 @@
 
 namespace pg {
 
+constexpr int kMaxRecoveryRetries = 100;
+
 void parser_type::push_stage(const std::string &root)
 {
 	int prev_cursor = 0;
@@ -253,6 +255,8 @@ parse_state parser_type::match(const syntax_t &it)
 			return parse_state::accept;
 		case parse_state::eof:
 			return parse_state::eof;
+		case parse_state::accept:
+			break;
 		}
 		push_stage("nlook");
 		result = match_syntax(std::any_cast<syntax_seq &>(it->data));
@@ -275,6 +279,8 @@ parse_state parser_type::match(const syntax_t &it)
 				return parse_state::accept;
 			case parse_state::eof:
 				return parse_state::accept;
+			case parse_state::accept:
+				break;
 			}
 			push_stage("repeat");
 			int before = m_stack.front().cursor;
@@ -306,6 +312,8 @@ parse_state parser_type::match(const syntax_t &it)
 			return parse_state::accept;
 		case parse_state::eof:
 			return parse_state::accept;
+		case parse_state::accept:
+			break;
 		}
 		push_stage("optional");
 		result = match_syntax(std::any_cast<syntax_seq &>(it->data));
@@ -333,6 +341,8 @@ parse_state parser_type::match(const syntax_t &it)
 			case parse_state::eof:
 				reaches_eof = true;
 				continue;
+			case parse_state::accept:
+				break;
 			}
 			push_stage("cond_or");
 			result = match_syntax(std::any_cast<syntax_seq &>(seq->data));
@@ -477,6 +487,8 @@ void parser_type::solve_pending_ref()
 
 void parser_type::init(const syntax_map_t &grammar)
 {
+	if (grammar.find("begin") == grammar.end())
+		throw std::runtime_error("Grammar must define a 'begin' rule");
 	m_predict_cache.clear();
 	m_syn_storage = grammar;
 	m_syn = &m_syn_storage;
@@ -511,7 +523,7 @@ bool parser_type::run(const syntax_map_t &grammar, const token_list_t &lex_outpu
 std::shared_ptr<syntax_tree> parser_type::production() const
 {
 	if (!m_stack.empty())
-	return std::make_shared<syntax_tree>(m_stack.front().product);
+		return std::make_shared<syntax_tree>(m_stack.front().product);
 	return nullptr;
 }
 
@@ -580,9 +592,8 @@ bool recovering_parser_type::parse_with_recovery(const token_list_t &lex_output)
 {
 	m_all_errors.clear();
 	int start = 0;
-	int max_retries = 100;
 	int retries = 0;
-	while (start < static_cast<int>(lex_output.size()) && retries < max_retries) {
+	while (start < static_cast<int>(lex_output.size()) && retries < kMaxRecoveryRetries) {
 		m_error_log.clear();
 		m_stack.clear();
 		m_max_cursor = 0;
