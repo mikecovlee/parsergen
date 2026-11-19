@@ -105,9 +105,6 @@ end
 function make_token(pos, type, data)
     var t = new token_type
     t.pos = pos
-    if t.pos[0] > 0
-        --t.pos[0]
-    end
     t.type = type
     t.data = data
     return move(t)
@@ -116,6 +113,12 @@ end
 struct lex_error
     var text = new string
     var pos = {0, 0}
+    function set_text(v)
+        text = v
+    end
+    function set_pos(v)
+        pos = v
+    end
 end
 
 class lexer_type
@@ -127,21 +130,19 @@ class lexer_type
     var wpos = {0, 0}
     var pos = {0, 0, 0}
     function cursor_forward()
+        var ch = data[pos[2]]
         ++pos[2]
-        if pos[2] != data.size
-            if data[pos[2]] == '\n'
-                ++pos[1]
-                pos[0] = 0
-            else
-                ++pos[0]
-            end
+        if ch == '\n'
+            ++pos[1]
+            pos[0] = 0
+        else
+            ++pos[0]
         end
     end
     function error(str, pos)
         var err = new lex_error
         err.text = str
         err.pos = pos
-        --err.pos[0]
         error_log.push_back(move(err))
     end
     function process_token()
@@ -171,28 +172,42 @@ class lexer_type
         end
     end
     function run(lexical, text)
+        error_log = new array
+        output = new array
+        lexical_set = new hash_set
+        buff = new string
+        pos[0] = 0
+        pos[2] = 0
         data = text
+        var clex = new hash_map
+        foreach it in lexical
+            if typeid it.second == typeid ""
+                clex[it.first] = regex.build_optimize(it.second)
+            else
+                clex[it.first] = it.second
+            end
+        end
         while pos[2] != data.size
             var ch = data[pos[2]]
             if lexical_set.empty()
                 var nbuff = to_string(ch)
-                foreach it in lexical
+                foreach it in clex
                     if !it.second.match(nbuff).empty()
                         lexical_set.insert(it.first)
                     end
                 end
                 if !lexical_set.empty()
-                    wpos = pos
+                    wpos = {pos[0], pos[1]}
                     buff = nbuff
                 else
-                    error("Unknown character \'" + nbuff + "\'", pos)
+                    error("Unknown character \'" + nbuff + "\'", {pos[0], pos[1]})
                 end
                 cursor_forward()
             else
                 var nbuff = buff + ch
                 var nset = new hash_set
                 foreach it in lexical_set
-                    if lexical[it].match(nbuff).empty()
+                    if clex[it].match(nbuff).empty()
                         nset.insert(it)
                     end
                 end
@@ -209,6 +224,9 @@ class lexer_type
         end
         process_token()
         return output
+    end
+    function get_error_log()
+        return error_log
     end
 end
 
@@ -229,21 +247,19 @@ class unicode_lexer_type
         cvt = new unicode.codecvt.utf8
     end
     function cursor_forward()
+        var ch = data.at(pos[2])
         ++pos[2]
-        if pos[2] != data.size
-            if data.at(pos[2]) == unicode.wchar.from_char('\n')
-                ++pos[1]
-                pos[0] = 0
-            else
-                ++pos[0]
-            end
+        if ch == unicode.wchar.from_char('\n')
+            ++pos[1]
+            pos[0] = 0
+        else
+            ++pos[0]
         end
     end
     function error(str, pos)
         var err = new lex_error
         err.text = str
         err.pos = pos
-        --err.pos[0]
         error_log.push_back(move(err))
     end
     function process_token()
@@ -273,6 +289,12 @@ class unicode_lexer_type
         end
     end
     function run(lexical, text)
+        error_log = new array
+        output = new array
+        lexical_set = new hash_set
+        buff = new unicode.wstring
+        pos[0] = 0
+        pos[2] = 0
         data = cvt.local2wide(text)
         while pos[2] != data.size
             var ch = data.at(pos[2])
@@ -284,10 +306,10 @@ class unicode_lexer_type
                     end
                 end
                 if !lexical_set.empty()
-                    wpos = pos
+                    wpos = {pos[0], pos[1]}
                     buff = nbuff
                 else
-                    error("Unknown character \'" + cvt.wide2local(nbuff) + "\'", pos)
+                    error("Unknown character \'" + cvt.wide2local(nbuff) + "\'", {pos[0], pos[1]})
                 end
                 cursor_forward()
             else
@@ -743,9 +765,19 @@ class parser_type
                         end
                     end
                     push_stage("repeat")
+                    var before = this.stack.front.cursor
                     result = match_syntax(it.data)
                     switch result
                         case parse_state.accept
+                            # Item matched epsilon (no token consumed): the repeat
+                            # boot then contains epsilon and predict() keeps
+                            # accepting, so stop or the loop never terminates
+                            if this.stack.front.cursor <= before
+                                #%debug
+                                parse_log("Repeat item matched epsilon, stopping")
+                                merge()
+                                return parse_state.accept
+                            end
                             merge()
                         end
                         case parse_state.reject
@@ -930,6 +962,8 @@ class parser_type
                             unsolved_ref = true
                         end
                     end
+                else
+                    throw runtime.exception("Undefined grammar reference: " + ref)
                 end
             end
             boot.merge(pending_set)
@@ -1021,6 +1055,18 @@ end
 
 class partial_parser_type extends parser_type
     var on_eof_hook = null
+    function set_eof_hook(fn)
+        on_eof_hook = fn
+    end
+    function clear_eof_hook()
+        on_eof_hook = null
+    end
+    function push_tokens(arr)
+        foreach it in arr do this.lex.push_back(it)
+    end
+    function append_token(tok)
+        this.lex.push_back(tok)
+    end
     function match_syntax(seq) override
         var begin_cur = this.stack.front.cursor
         var it = seq.begin
@@ -1030,16 +1076,24 @@ class partial_parser_type extends parser_type
                 #%debug
                 this.parse_log("Incomplete Match")
                 if this.eof()
-                    #%debug
-                    this.parse_log("Injecting On-EOF Hook")
-                    on_eof_hook(this)
+                    var injected = false
+                    if on_eof_hook != null
+                        #%debug
+                        this.parse_log("Injecting On-EOF Hook")
+                        var before = this.lex.size
+                        on_eof_hook(this)
+                        injected = this.lex.size > before
+                    end
                     this.memo_cache = new hash_map
                     this.ign_cache = new hash_map
                     # Fallback to the beginning of matching
                     this.stack.front.cursor = begin_cur
                     this.stack.front.product.nodes = new array
                     it = seq.begin
-                    if this.eof()
+                    # eof() is cursor-based: resetting the cursor below the old
+                    # end makes it false even when the hook injected nothing.
+                    # Retry only if the input actually grew.
+                    if this.eof() || !injected
                         if this.lex.empty()
                             this.error("Incomplete sentence", {0, 0})
                         else
@@ -1092,7 +1146,7 @@ class recovering_parser_type extends parser_type
             this.lex = lex_output
             this.push_stage("begin")
             this.stack.front.cursor = start
-            if this.match_syntax(this.syn.begin) == parse_state.accept && this.eof()
+            if this.match_syntax(this.syn.begin) == parse_state.accept && this.stack.size == 1 && this.eof()
                 return true
             end
             var err = this.get_log(0)
@@ -1130,21 +1184,20 @@ function print_ast_impl(indent, tree)
     if tree == null
         return
     end
-    system.out.println(tree.root)
     foreach it in tree.nodes
-        foreach i in range(indent + 2) do system.out.print(' ')
-        system.out.print(tree.root + " -> ")
         if typeid it == typeid syntax_tree
-            print_ast_impl(indent + 2, it)
+            system.out.println(indent + "(" + it.root)
+            print_ast_impl(indent + "  ", it)
+            system.out.println(indent + ")")
         end
         if typeid it == typeid token_type
-            system.out.println("\"" + it.data + "\"")
+            system.out.println(indent + "[" + it.type + " " + it.data + "]")
         end
     end
 end
 
 function print_ast(tree)
-    print_ast_impl(0, tree)
+    print_ast_impl("", tree)
 end
 
 function read_stream(ifs, data)
@@ -1177,10 +1230,24 @@ function read_stream(ifs, data)
         data.push_back(line)
     end
 end
+function make_grammar_from(ext, lex, stx)
+    var g = new grammar
+    g.ext = ext
+    g.lex = lex
+    g.stx = stx
+    return g
+end
+function make_lex_error(text, pos)
+    var e = new lex_error
+    e.text = text
+    e.pos = pos
+    return e
+end
 
 class generator
     # Grammars
     var rules = new hash_map
+    var lang_cvts = new hash_map
     # String Input
     var input = new string
     # Line Separated Input(for Error Reporting)
@@ -1200,10 +1267,18 @@ class generator
     # Private Methods
     var file_path = "<FILE>"
     function priv_run(lang)
+        ast = null
+        token_buff = null
+        parser = null
+        lexer = null
         if rules.exist(lang)
-            if unicode_cvt != null
+            var cvt = unicode_cvt
+            if lang_cvts.exist(lang)
+                cvt = lang_cvts[lang]
+            end
+            if cvt != null
                 lexer = new unicode_lexer_type
-                lexer.cvt = unicode_cvt
+                lexer.cvt = cvt
             else
                 lexer = new lexer_type
             end
@@ -1301,13 +1376,18 @@ class generator
             return false
         end
         file_path = path
+        var matched = new array
         foreach it in rules
             var reg = regex.build(it.second.ext)
             if !reg.match(path).empty()
-                return from_stream(it.first, ifs)
+                matched.push_back(it.first)
             end
         end
-        return false
+        if matched.empty()
+            return false
+        end
+        matched.sort([](lhs, rhs)->lhs < rhs)
+        return from_stream(matched[0], ifs)
     end
     function get_errors()
         var err = new array
@@ -1319,5 +1399,83 @@ class generator
         end
         err.sort([](lhs, rhs)->lhs.pos[1] < rhs.pos[1])
         return move(err)
+    end
+    function add_language(lang, coding, gram)
+        var g = new grammar
+        g.ext = gram.ext
+        g.lex = gram.lex
+        g.stx = gram.stx
+        var compiled_lex = new hash_map
+        foreach it in g.lex
+            compiled_lex[it.first] = regex.build_optimize(it.second)
+        end
+        g.lex = compiled_lex
+        var cvt = null
+        if coding == "utf8"
+            if unicode == null
+                throw runtime.exception("Please install unicode package first!")
+            end
+            cvt = new unicode.codecvt.utf8
+        else
+            if coding == "gbk"
+                if unicode == null
+                    throw runtime.exception("Please install unicode package first!")
+                end
+                cvt = new unicode.codecvt.gbk
+            end
+        end
+        lang_cvts[lang] = cvt
+        rules[lang] := g
+    end
+    function lex_string(lang, text, start_line)
+        if !rules.exist(lang)
+            return null
+        end
+        link grammar = rules[lang]
+        var cvt = null
+        if lang_cvts.exist(lang)
+            cvt = lang_cvts[lang]
+        end
+        var lex = null
+        if cvt != null
+            lex = new unicode_lexer_type
+            lex.cvt = cvt
+        else
+            lex = new lexer_type
+        end
+        lex.pos[1] = start_line
+        var tokens = lex.run(grammar.lex, text)
+        lexer = lex
+        return tokens
+    end
+    function get_lex_errors()
+        if lexer != null
+            return lexer.error_log
+        end
+        return new array
+    end
+    function get_tokens()
+        return token_buff
+    end
+    function get_code()
+        return code_buff
+    end
+    function get_ast()
+        return ast
+    end
+    function get_code_buff()
+        return code_buff
+    end
+    function get_file_path()
+        return file_path
+    end
+    function set_show_prompt(v)
+        show_prompt = v
+    end
+    function set_stop_on_error(v)
+        stop_on_error = v
+    end
+    function set_enable_log(v)
+        enable_log = v
     end
 end

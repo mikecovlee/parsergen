@@ -1,0 +1,6 @@
+[submodule "cpp/covscript-regex"]
+	path = cpp/covscript-regex
+	url = https://github.com/covscript/covscript-regex.git
+[submodule "cpp/utfcpp"]
+	path = cpp/utfcpp
+	url = https://github.com/nemtrif/utfcpp.git

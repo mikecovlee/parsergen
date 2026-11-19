@@ -2,17 +2,17 @@
 
 ## 词法规则
 
-词法规则定义为 `hash_map`，键为规则名，值为正则表达式（通过 `regex.build()` 创建）。
-词法分析器贪婪匹配最长前缀。
+词法规则定义为 `hash_map`，键为规则名，值为正则表达式**模式字符串**。
+词法分析器贪婪匹配最长前缀。模式在通过 `add_language` / `make_grammar_from` 注册时内部编译。
 
 ```js
 var lex = {
-    "id"   : regex.build("^[A-Za-z_]\\w*$"),   // 标识符
-    "num"  : regex.build("^[0-9]+$"),            // 数字
-    "str"  : regex.build(`^("|"([^"]|\\")*"?)$`), // 字符串
-    "sig"  : regex.build("^(=|;|\\(|\\))$"),     // 单字符 Token
-    "ign"  : regex.build("^\\s+$"),              // 空白（跳过）
-    "err"  : regex.build("^.$")                  // 未知字符兜底
+    "id"   : "^[A-Za-z_]\\w*$",   // 标识符
+    "num"  : "^[0-9]+$",            // 数字
+    "str"  : `^("|"([^"]|\\")*"?)$`, // 字符串
+    "sig"  : "^(=|;|\\(|\\))$",     // 单字符 Token
+    "ign"  : "^\\s+$",              // 空白（跳过）
+    "err"  : "^.$"                  // 未知字符兜底
 }.to_hash_map()
 ```
 
@@ -28,8 +28,8 @@ var lex = {
 ```js
 @begin
 var lex = {
-    "sig" : regex.build("^(\\{|\\}|\\[|\\]|\\(|\\))$"),
-    "ign" : regex.build("^(\\s+|\\{[^\\}]*\\}?)$")
+    "sig" : "^(\\{|\\}|\\[|\\]|\\(|\\))$",
+    "ign" : "^(\\s+|\\{[^\\}]*\\}?)$"
 }.to_hash_map()
 @end
 ```
@@ -174,15 +174,15 @@ token 类型和字面值集合。如果当前 token 不在 boot set 中，则跳
 ## 完整示例
 
 ```js
-import parsergen, regex
+import parsergen
 constant syntax = parsergen.syntax
 
 // --- 词法 ---
 var lex = {
-    "id"  : regex.build("^[a-z]+$"),
-    "num" : regex.build("^[0-9]+$"),
-    "op"  : regex.build("^(=|;|\\+|\\*|\\(|\\))$"),
-    "ign" : regex.build("^\\s+$")
+    "id"  : "^[a-z]+$",
+    "num" : "^[0-9]+$",
+    "op"  : "^(=|;|\\+|\\*|\\(|\\))$",
+    "ign" : "^\\s+$"
 }.to_hash_map()
 
 // --- 语法 ---
@@ -193,7 +193,9 @@ var stx = {
                syntax.term(";")},
     "expr"  : {syntax.ref("term"),
                syntax.repeat(syntax.term("+"), syntax.ref("term"))},
-    "term"  : {syntax.cond_or(
+    "term"  : {syntax.ref("factor"),
+               syntax.repeat(syntax.term("*"), syntax.ref("factor"))},
+    "factor": {syntax.cond_or(
         {syntax.token("num")},
         {syntax.token("id")},
         {syntax.term("("), syntax.ref("expr"), syntax.term(")")}
@@ -203,12 +205,11 @@ var stx = {
 @end
 
 // --- 解析 ---
-var gram = new parsergen.grammar
-gram.lex = lex
-gram.stx = stx
+var gram = parsergen.make_grammar_from(".*\\.calc", lex, stx)
 
 var gen = new parsergen.generator
-gen.add_grammar("calc", gram)
+gen.set_show_prompt(false)
+gen.add_language("calc", "ascii", gram)
 gen.from_string("calc", "x = 1 + (2 * y);")
 ```
 
